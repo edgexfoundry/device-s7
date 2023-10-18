@@ -8,10 +8,6 @@
 
 S7 Micro Service - device service for connecting Siemens S7(S7-200, S7-300, S7-400, S7-1200, S7-1500) devices by `ISO-on-TCP` to EdgeX.
 
-### Branch
-
-This main branch is for EdgeX v3.x.
-
 ## Features
 
 - Single Read and Write
@@ -470,10 +466,6 @@ curl http://localhost:59882/api/v3/device/name/S7-Device01/heartbeat
   }
 }
 ```
-
-### For EdgeX v2.x
-
-Checkout to branch v2.
 
 ## Reference
 
