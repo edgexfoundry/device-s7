@@ -1,0 +1,28 @@
+Writable:
+  LogLevel: DEBUG
+  Reading:
+    ReadingUnits: true
+  Telemetry:
+    Metrics:
+      # All service's custom metric names must be present in this list. All common metric names are in the Common Config
+      ReadCommandsExecuted: true
+Service:
+  Host: 'localhost'
+  Port: 59994
+  # Device service are assigned the 599xx range
+  StartupMsg: device s7 started
+  RequestTimeout: 5s
+
+MessageBus:
+  Optional:
+    ClientId: device-s7
+
+# Example overriding of Common Config settings
+Device:
+  AsyncBufferSize: 1
+  # These have common values (currently), but must be here for service local env overrides to apply when customized
+  ProfilesDir: './res/profiles'
+  DevicesDir: './res/devices'
+  # Only needed if device service implements auto provisioning
+  ProvisionWatchersDir: ./res/provisionwatchers
+# Example structured custom configuration
