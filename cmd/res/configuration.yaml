@@ -19,7 +19,6 @@ MessageBus:
 
 # Example overriding of Common Config settings
 Device:
-  AsyncBufferSize: 1
   # These have common values (currently), but must be here for service local env overrides to apply when customized
   ProfilesDir: './res/profiles'
   DevicesDir: './res/devices'
