@@ -8,7 +8,7 @@ Writable:
       ReadCommandsExecuted: true
 Service:
   Host: 'localhost'
-  Port: 59994
+  Port: #
   # Device service are assigned the 599xx range
   StartupMsg: device s7 started
   RequestTimeout: 5s
