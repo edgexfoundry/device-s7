@@ -4,164 +4,68 @@ description: Example of S7 Device
 model: Siemens S7
 labels: [ISO-on-TCP]
 deviceResources:
-  - description: PLC bool
-    name: bool
+  - name: bool
+    description: PLC bool
     isHidden: false
     properties:
       valueType: Bool
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBX0.0
-  - description: PLC byte
-    name: byte
+  - name: byte
+    description: PLC byte
     isHidden: false
     properties:
       valueType: Uint8
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBB1
-  - description: PLC word
-    name: word
+  - name: word
+    description: PLC word
     isHidden: false
     properties:
       valueType: Int16
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBW2
-  - description: PLC dword
-    name: dword
+  - name: dword
+    description: PLC dword
     isHidden: false
     properties:
       valueType: Int32
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBD4
-  - description: PLC int
-    name: int
+  - name: int
+    description: PLC int
     isHidden: false
     properties:
       valueType: Int16
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBW8
-  - description: PLC dint
-    name: dint
+  - name: dint
+    description: PLC dint
     isHidden: false
     properties:
       valueType: Int32
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBW10
-  - description: PLC real
-    name: real
+  - name: real
+    description: PLC real
     isHidden: false
     properties:
       valueType: Float32
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB4.DBD14
-  - description: PLC heartbeat
-    name: heartbeat
+  - name: heartbeat
+    description: PLC heartbeat
     isHidden: false
     properties:
       valueType: Int16
       readWrite: RW
-      units: ''
-      minimum: null
-      maximum: null
-      defaultValue: ''
-      mask: null
-      shift: null
-      scale: null
-      offset: null
-      base: null
-      assertion: ''
-      mediaType: ''
-      optional: {}
     attributes:
       NodeName: DB1.DBW160
 deviceCommands:
@@ -170,26 +74,10 @@ deviceCommands:
     readWrite: RW
     resourceOperations:
       - deviceResource: bool
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: byte
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: word
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: dword
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: int
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: dint
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: real
-        defaultValue: '0'
-        mappings: {}
       - deviceResource: heartbeat
-        defaultValue: '0'
-        mappings: {}
