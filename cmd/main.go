@@ -1,12 +1,10 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 //
-// Copyright (C) 2017-2018 Canonical Ltd
-// Copyright (C) 2018-2019 IOTech Ltd
 // Copyright (C) 2023 YIQISOFT
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// This package provides a simple example of a device service.
+// This package provides a simple example of a S7 device service.
 package main
 
 import (

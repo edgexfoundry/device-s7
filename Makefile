@@ -19,6 +19,9 @@ GIT_SHA=$(shell git rev-parse HEAD)
 
 build: $(MICROSERVICES)
 
+build-nats:
+	make -e ADD_BUILD_TAGS=include_nats_messaging build
+
 tidy:
 	go mod tidy
 

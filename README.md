@@ -81,7 +81,7 @@ device-s7:
     EDGEX_SECURITY_SECRET_STORE: 'false'
     SERVICE_HOST: edgex-device-s7
   hostname: edgex-device-s7
-  image: edgexfoundry/device-s7:3.1.0-dev
+  image: edgexfoundry/device-s7:0.0.0-dev
   networks:
     edgex-network: null
   ports:

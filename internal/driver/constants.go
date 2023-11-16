@@ -9,20 +9,10 @@ package driver
 // Constants related to protocol properties
 const (
 	Protocol     = "s7"
-	CommandTopic = "CommandTopic"
 )
 
-// Constants related to custom configuration
-const (
-	CustomConfigSectionName = "S7Info"
-	WritableInfoSectionName = CustomConfigSectionName + "/Writable"
-)
 
 const (
-	INT16 = "INT16"
-	INT32 = "INT32"
-	BOOL  = "BOOL"
-
 	HOST             = "Host"
 	PORT             = "Port"
 	RACK             = "Rack"

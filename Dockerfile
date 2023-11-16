@@ -1,5 +1,4 @@
 #
-# Copyright (c) 2023 Intel
 # Copyright (C) 2023 YIQISOFT
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +24,7 @@ WORKDIR /device-s7
 LABEL license='SPDX-License-Identifier: Apache-2.0' \
   copyright='Copyright (c) 2023: YIQISOFT'
 
-RUN apk add --update --no-cache make git gcc  libc-dev
+RUN apk add --update --no-cache make git gcc libc-dev
 
 COPY go.mod vendor* ./
 RUN [ ! -d "vendor" ] && go mod download all || echo "skipping..."

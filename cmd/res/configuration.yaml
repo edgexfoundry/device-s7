@@ -8,7 +8,7 @@ Writable:
       ReadCommandsExecuted: true
 Service:
   Host: 'localhost'
-  Port: #
+  Port: # 59994 for testing
 
 Device:
   # These have common values (currently), but must be here for service local env overrides to apply when customized

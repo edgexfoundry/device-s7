@@ -1,8 +1,6 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 //
-// Copyright (C) 2018 Canonical Ltd
-// Copyright (C) 2018-2022 IOTech Ltd
-// Copyright (C) 2023 YIQISOFT Ltd
+// Copyright (C) 2023 YIQISOFT
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -49,7 +47,6 @@ type Driver struct {
 	lc                   logger.LoggingClient
 	asyncCh              chan<- *sdkModel.AsyncValues
 	stringArray          []string
-	serviceConfig        *ServiceConfig
 	sdkService           interfaces.DeviceServiceSDK
 	s7Clients            map[string]*S7Client
 }
@@ -88,30 +85,9 @@ type DBInfo struct {
 func (s *Driver) Initialize(sdk interfaces.DeviceServiceSDK) error {
 	s.lc = sdk.LoggingClient()
 	s.asyncCh = sdk.AsyncValuesChannel()
-	s.serviceConfig = &ServiceConfig{}
 	s.s7Clients = make(map[string]*S7Client)
 
 	s.stringArray = []string{"foo", "bar"}
-
-	// ds := interfaces.Service()
-	// s.sdkService = service.RunningService()
-	// ds := service.RunningService()
-
-	// if err := ds.LoadCustomConfig(s.serviceConfig, CustomConfigSectionName); err != nil {
-	// 	return fmt.Errorf("unable to load 'SimpleCustom' custom configuration: %s", err.Error())
-	// }
-
-	// s.lc.Infof("Custom config is: %v", s.serviceConfig)
-
-	// if err := s.serviceConfig.S7Info.Validate(); err != nil {
-	// 	return fmt.Errorf("'S7InfoCustom' custom configuration validation failed: %s", err.Error())
-	// }
-
-	// if err := ds.ListenForCustomConfigChanges(
-	// 	&s.serviceConfig.S7Info.Writable,
-	// 	WritableInfoSectionName, s.ProcessCustomConfigChanges); err != nil {
-	// 	return fmt.Errorf("unable to listen for changes for 'S7Info.Writable' custom configuration: %s", err.Error())
-	// }
 
 	for _, device := range sdk.Devices() {
 		s7Client := s.NewS7Client(device.Name, device.Protocols)
@@ -122,38 +98,12 @@ func (s *Driver) Initialize(sdk interfaces.DeviceServiceSDK) error {
 		s.s7Clients[device.Name] = s7Client
 	}
 
-	s.lc.Infof("Registered %s metric for collection when enabled", readCommandsExecutedName)
-
 	return nil
 }
 
 // ProcessCustomConfigChanges ...
 func (s *Driver) ProcessCustomConfigChanges(rawWritableConfig interface{}) {
-	// updated, ok := rawWritableConfig.(*WritableInfo)
-	// if !ok {
-	// 	s.lc.Error("unable to process custom config updates: Can not cast raw config to type 'S7InfoWritable'")
-	// 	return
-	// }
 
-	// s.lc.Info("Received configuration updates for 'S7Info.Writable' section")
-
-	// previous := s.serviceConfig.S7Info.Writable
-	// s.serviceConfig.S7Info.Writable = *updated
-
-	// if reflect.DeepEqual(previous, *updated) {
-	// 	s.lc.Info("No changes detected")
-	// 	return
-	// }
-
-	// Now check to determine what changed.
-	// In this example we only have the one writable setting,
-	// so the check is not really need but left here as an example.
-	// Since this setting is pulled from configuration each time it is need, no extra processing is required.
-	// This may not be true for all settings, such as external host connection info, which
-	// may require re-establishing the connection to the external host for example.
-	// if previous.DiscoverSleepDurationSecs != updated.DiscoverSleepDurationSecs {
-	// 	s.lc.Infof("DiscoverSleepDurationSecs changed to: %d", updated.DiscoverSleepDurationSecs)
-	// }
 }
 
 // HandleReadCommands triggers a protocol Read operation for the specified device.
@@ -371,6 +321,13 @@ func (s *Driver) Stop(force bool) error {
 // when a new Device associated with this Device Service is added
 func (s *Driver) AddDevice(deviceName string, protocols map[string]models.ProtocolProperties, adminState models.AdminState) error {
 	s.lc.Debugf("a new Device is added: %s", deviceName)
+
+	s7Client := s.NewS7Client(deviceName, protocols)
+		if s7Client == nil {
+			s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		}
+		s.s7Clients[deviceName] = s7Client
+
 	return nil
 }
 
@@ -385,14 +342,11 @@ func (s *Driver) UpdateDevice(deviceName string, protocols map[string]models.Pro
 // when a Device associated with this Device Service is removed
 func (s *Driver) RemoveDevice(deviceName string, protocols map[string]models.ProtocolProperties) error {
 	s.lc.Debugf("Device %s is removed", deviceName)
+
+	s.s7Clients[deviceName] = nil
 	return nil
 }
 
-// Discover triggers protocol specific device discovery, which is an asynchronous operation.
-// Devices found as part of this discovery operation are written to the channel devices.
-// func (s *Driver) Discover() {
-
-// }
 
 func (s *Driver) ValidateDevice(device models.Device) error {
 
@@ -401,28 +355,27 @@ func (s *Driver) ValidateDevice(device models.Device) error {
 
 // Create S7Client by 'Device' definition
 func (s *Driver) NewS7Client(deviceName string, protocol map[string]models.ProtocolProperties) *S7Client {
-	// protocol := device.Protocols[Protocol]
-	// fmt.Println(protocol)
+
 	pp := protocol[Protocol]
 	var errt error
 	host, errt := cast.ToStringE(pp["Host"])
 	if errt != nil {
-		s.lc.Errorf("Timeout not found or not an integer in Protocol, USE DEFAULT 30s error: %s", errt)
+		s.lc.Errorf("Host not found or not a string in Protocol, error: %s", errt)
 		return nil
 	}
 	port, errt := cast.ToStringE(pp["Port"])
 	if errt != nil {
-		s.lc.Errorf("Timeout not found or not an integer in Protocol, USE DEFAULT 30s error: %s", errt)
+		s.lc.Errorf("Port not found or not an integer in Protocol, error: %s", errt)
 		return nil
 	}
 	rack, errt := cast.ToIntE(pp["Rack"])
 	if errt != nil {
-		s.lc.Errorf("Timeout not found or not an integer in Protocol, USE DEFAULT 30s error: %s", errt)
+		s.lc.Errorf("Rack not found or not an integer in Protocol, error: %s", errt)
 		return nil
 	}
 	slot, errt := cast.ToIntE(pp["Slot"])
 	if errt != nil {
-		s.lc.Errorf("Timeout not found or not an integer in Protocol, USE DEFAULT 30s error: %s", errt)
+		s.lc.Errorf("Slot not found or not an integer in Protocol, error: %s", errt)
 		return nil
 	}
 	timeout, errt := cast.ToIntE(pp["Timeout"])
@@ -437,7 +390,6 @@ func (s *Driver) NewS7Client(deviceName string, protocol map[string]models.Proto
 	}
 
 	// create handler: PLC tcp client
-	// fmt.Println(host, rack, slot)
 	handler := gos7.NewTCPClientHandler(host+":"+port, rack, slot)
 	if handler == nil {
 		s.lc.Errorf("Cant not create NewTCPClientHandler: %s", handler)
@@ -553,23 +505,9 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 		case "0": //output
 		case "M": //memory
 		case "T": //timer
-			// startByte, _ := strconv.ParseInt(string(variable[1:]), 10, 16)
-			// err = mb.AGReadTM(int(startByte), 1, buffer)
-			// if err != nil {
-			// 	return
-			// }
-			// helper := Helper{}
-			// helper.GetValueAt(buffer, 0, value)
 			return
 		case "Z":
 		case "C": //counter
-			// startByte, _ := strconv.ParseInt(string(variable[1:]), 10, 16)
-			// err = mb.AGReadCT(int(startByte), 1, buffer)
-			// if err != nil {
-			// 	return
-			// }
-			// helper := Helper{}
-			// helper.GetValueAt(buffer, 0, value)
 			return
 		default:
 			s.lc.Errorf("error when parsing db area")
@@ -592,8 +530,7 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 // Get command value type
 func getCommandValueType(buffer []byte, valueType string) (value interface{}, err error) {
 	var helper gos7.Helper
-	// var err error
-	// var value interface{}
+
 	switch valueType {
 	case common.ValueTypeBool:
 		var commandValue bool
@@ -777,14 +714,7 @@ func getCommandValue(req sdkModel.CommandRequest, reading interface{}) (*sdkMode
 }
 
 func (d *Driver) Start() error {
-	// for _, device := range interfaces.DeviceServiceSDK.Devices() {
-	// s7Client := d.NewS7Client(device.Name, device.Protocols)
-	// if s7Client == nil {
-	// 	d.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", device.Name)
-	// 	continue
-	// }
-	// d.s7Clients[device.Name] = s7Client
-	// }
+
 	return nil
 }
 
