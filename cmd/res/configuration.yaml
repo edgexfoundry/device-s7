@@ -9,19 +9,8 @@ Writable:
 Service:
   Host: 'localhost'
   Port: #
-  # Device service are assigned the 599xx range
-  StartupMsg: device s7 started
-  RequestTimeout: 5s
 
-MessageBus:
-  Optional:
-    ClientId: device-s7
-
-# Example overriding of Common Config settings
 Device:
   # These have common values (currently), but must be here for service local env overrides to apply when customized
   ProfilesDir: './res/profiles'
   DevicesDir: './res/devices'
-  # Only needed if device service implements auto provisioning
-  ProvisionWatchersDir: ./res/provisionwatchers
-# Example structured custom configuration
