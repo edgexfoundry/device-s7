@@ -10,7 +10,9 @@ SDKVERSION=$(shell cat ./go.mod | grep 'github.com/edgexfoundry/device-sdk-go/v3
 
 DOCKER_TAG=$(VERSION)-dev
 
-GOFLAGS=-ldflags "-X github.com/edgexfoundry/device-s7.Version=$(VERSION)" -trimpath -mod=readonly
+GOFLAGS=-ldflags "-X github.com/edgexfoundry/device-s7.Version=$(VERSION) \
+                  -X github.com/edgexfoundry/device-sdk-go/v3/internal/common.SDKVersion=$(SDKVERSION)" \
+                   -trimpath -mod=readonly
 GOTESTFLAGS?=-race
 
 GIT_SHA=$(shell git rev-parse HEAD)
