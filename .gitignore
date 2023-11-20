@@ -15,5 +15,5 @@
 
 .idea/
 vendor/
-cmd/device-7
 VERSION
+cmd/device-s7

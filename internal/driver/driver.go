@@ -49,6 +49,7 @@ type Driver struct {
 	stringArray          []string
 	sdkService           interfaces.DeviceServiceSDK
 	s7Clients            map[string]*S7Client
+	mu					 sync.Mutex
 }
 
 func NewProtocolDriver() interfaces.ProtocolDriver {
@@ -87,8 +88,6 @@ func (s *Driver) Initialize(sdk interfaces.DeviceServiceSDK) error {
 	s.asyncCh = sdk.AsyncValuesChannel()
 	s.s7Clients = make(map[string]*S7Client)
 
-	s.stringArray = []string{"foo", "bar"}
-
 	for _, device := range sdk.Devices() {
 		s7Client := s.NewS7Client(device.Name, device.Protocols)
 		if s7Client == nil {
@@ -99,11 +98,6 @@ func (s *Driver) Initialize(sdk interfaces.DeviceServiceSDK) error {
 	}
 
 	return nil
-}
-
-// ProcessCustomConfigChanges ...
-func (s *Driver) ProcessCustomConfigChanges(rawWritableConfig interface{}) {
-
 }
 
 // HandleReadCommands triggers a protocol Read operation for the specified device.
@@ -310,6 +304,11 @@ outloop:
 // for closing any in-use channels, including the channel used to send async
 // readings (if supported).
 func (s *Driver) Stop(force bool) error {
+
+	s.mu.Lock()
+	s.s7Clients = nil
+	s.mu.Unlock()
+
 	// Then Logging Client might not be initialized
 	if s.lc != nil {
 		s.lc.Debugf("Driver.Stop called: force=%v", force)
@@ -342,11 +341,11 @@ func (s *Driver) UpdateDevice(deviceName string, protocols map[string]models.Pro
 // when a Device associated with this Device Service is removed
 func (s *Driver) RemoveDevice(deviceName string, protocols map[string]models.ProtocolProperties) error {
 	s.lc.Debugf("Device %s is removed", deviceName)
-
+	s.mu.Lock()
 	s.s7Clients[deviceName] = nil
+	s.mu.Unlock()
 	return nil
 }
-
 
 func (s *Driver) ValidateDevice(device models.Device) error {
 
@@ -421,7 +420,9 @@ func (s *Driver) NewS7Client(deviceName string, protocol map[string]models.Proto
 
 // Get S7Client by 'DeviceName'
 func (s *Driver) getS7Client(deviceName string) *S7Client {
+	s.mu.Lock()
 	s7Client := s.s7Clients[deviceName]
+	s.mu.Unlock()
 	if s7Client == nil {
 		s.lc.Errorf("Get S7Client for device [%s] error.", deviceName)
 	}
