@@ -24,7 +24,6 @@ type S7Info struct {
 
 	ConnEstablishingRetry int
 	ConnRetryWaitTime     int
-
 }
 
 type S7Client struct {

@@ -8,9 +8,8 @@ package driver
 
 // Constants related to protocol properties
 const (
-	Protocol     = "s7"
+	Protocol = "s7"
 )
-
 
 const (
 	HOST             = "Host"

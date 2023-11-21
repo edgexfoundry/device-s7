@@ -44,12 +44,12 @@ var once sync.Once
 var driver *Driver
 
 type Driver struct {
-	lc                   logger.LoggingClient
-	asyncCh              chan<- *sdkModel.AsyncValues
-	stringArray          []string
-	sdkService           interfaces.DeviceServiceSDK
-	s7Clients            map[string]*S7Client
-	mu					 sync.Mutex
+	lc          logger.LoggingClient
+	asyncCh     chan<- *sdkModel.AsyncValues
+	stringArray []string
+	sdkService  interfaces.DeviceServiceSDK
+	s7Clients   map[string]*S7Client
+	mu          sync.Mutex
 }
 
 func NewProtocolDriver() interfaces.ProtocolDriver {
@@ -169,7 +169,9 @@ outloop:
 		err = s7Client.Client.AGReadMulti(items, len(items))
 		if err != nil {
 			s.lc.Info("AGReadMulti Error: %s, reconnecting...", err)
+			s.mu.Lock()
 			s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
+			s.mu.Unlock()
 			return
 		} else {
 			//fmt.Println(datas)
@@ -283,7 +285,9 @@ outloop:
 		err = s7Client.Client.AGWriteMulti(items1, len(items1))
 		if err != nil {
 			s.lc.Errorf("AGWriteMulti Error: %s, reconnecting...", err)
+			s.mu.Lock()
 			s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
+			s.mu.Unlock()
 			return err
 		} else {
 			//fmt.Println(datas)
@@ -322,11 +326,12 @@ func (s *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 	s.lc.Debugf("a new Device is added: %s", deviceName)
 
 	s7Client := s.NewS7Client(deviceName, protocols)
-		if s7Client == nil {
-			s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
-		}
-		s.s7Clients[deviceName] = s7Client
-
+	if s7Client == nil {
+		s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+	}
+	s.mu.Lock()
+	s.s7Clients[deviceName] = s7Client
+	s.mu.Unlock()
 	return nil
 }
 
