@@ -44,12 +44,11 @@ var once sync.Once
 var driver *Driver
 
 type Driver struct {
-	lc          logger.LoggingClient
-	asyncCh     chan<- *sdkModel.AsyncValues
-	stringArray []string
-	sdkService  interfaces.DeviceServiceSDK
-	s7Clients   map[string]*S7Client
-	mu          sync.Mutex
+	lc         logger.LoggingClient
+	asyncCh    chan<- *sdkModel.AsyncValues
+	sdkService interfaces.DeviceServiceSDK
+	s7Clients  map[string]*S7Client
+	mu         sync.Mutex
 }
 
 func NewProtocolDriver() interfaces.ProtocolDriver {
