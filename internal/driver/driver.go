@@ -87,15 +87,6 @@ func (s *Driver) Initialize(sdk interfaces.DeviceServiceSDK) error {
 	s.asyncCh = sdk.AsyncValuesChannel()
 	s.s7Clients = make(map[string]*S7Client)
 
-	for _, device := range sdk.Devices() {
-		s7Client := s.NewS7Client(device.Name, device.Protocols)
-		if s7Client == nil {
-			s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", device.Name)
-			continue
-		}
-		s.s7Clients[device.Name] = s7Client
-	}
-
 	return nil
 }
 
@@ -338,6 +329,14 @@ func (s *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 // when a Device associated with this Device Service is updated
 func (s *Driver) UpdateDevice(deviceName string, protocols map[string]models.ProtocolProperties, adminState models.AdminState) error {
 	s.lc.Debugf("Device %s is updated", deviceName)
+	s7Client := s.NewS7Client(deviceName, protocols)
+	if s7Client == nil {
+		s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+	}
+	s.mu.Lock()
+	s.s7Clients[deviceName] = s7Client
+	s.mu.Unlock()
+
 	return nil
 }
 
@@ -352,6 +351,41 @@ func (s *Driver) RemoveDevice(deviceName string, protocols map[string]models.Pro
 }
 
 func (s *Driver) ValidateDevice(device models.Device) error {
+	s.lc.Infof("Validating device: %s", device.Name)
+
+	protocol := device.Protocols
+	pp := protocol[Protocol]
+	var errt error
+	_, errt = cast.ToStringE(pp["Host"])
+	if errt != nil {
+		s.lc.Errorf("Host not found or not a string in Protocol, error: %s", errt)
+		return errt
+	}
+	_, errt = cast.ToIntE(pp["Port"])
+	if errt != nil {
+		s.lc.Errorf("Port not found or not an integer in Protocol, error: %s", errt)
+		return errt
+	}
+	_, errt = cast.ToIntE(pp["Rack"])
+	if errt != nil {
+		s.lc.Errorf("Rack not found or not an integer in Protocol, error: %s", errt)
+		return errt
+	}
+	_, errt = cast.ToIntE(pp["Slot"])
+	if errt != nil {
+		s.lc.Errorf("Slot not found or not an integer in Protocol, error: %s", errt)
+		return errt
+	}
+	_, errt = cast.ToIntE(pp["Timeout"])
+	if errt != nil {
+		s.lc.Errorf("Timeout not found or not an integer in Protocol, USE DEFAULT 30s error: %s", errt)
+		pp["timeout"] = 30
+	}
+	_, errt = cast.ToIntE(pp["IdleTimeout"])
+	if errt != nil {
+		s.lc.Errorf("IdleTimeout not found or not an ingeger in Protocol, USE DEFAULT 30s, error: %s", errt)
+		pp["idletimeout"] = 30
+	}
 
 	return nil
 }
@@ -360,37 +394,13 @@ func (s *Driver) ValidateDevice(device models.Device) error {
 func (s *Driver) NewS7Client(deviceName string, protocol map[string]models.ProtocolProperties) *S7Client {
 
 	pp := protocol[Protocol]
-	var errt error
-	host, errt := cast.ToStringE(pp["Host"])
-	if errt != nil {
-		s.lc.Errorf("Host not found or not a string in Protocol, error: %s", errt)
-		return nil
-	}
-	port, errt := cast.ToStringE(pp["Port"])
-	if errt != nil {
-		s.lc.Errorf("Port not found or not an integer in Protocol, error: %s", errt)
-		return nil
-	}
-	rack, errt := cast.ToIntE(pp["Rack"])
-	if errt != nil {
-		s.lc.Errorf("Rack not found or not an integer in Protocol, error: %s", errt)
-		return nil
-	}
-	slot, errt := cast.ToIntE(pp["Slot"])
-	if errt != nil {
-		s.lc.Errorf("Slot not found or not an integer in Protocol, error: %s", errt)
-		return nil
-	}
-	timeout, errt := cast.ToIntE(pp["Timeout"])
-	if errt != nil {
-		s.lc.Errorf("Timeout not found or not an integer in Protocol, USE DEFAULT 30s error: %s", errt)
-		timeout = 30
-	}
-	idletimeout, errt := cast.ToIntE(pp["IdleTimeout"])
-	if errt != nil {
-		s.lc.Errorf("IdleTimeout not found or not an ingeger in Protocol, USE DEFAULT 30s, error: %s", errt)
-		idletimeout = 30
-	}
+
+	host, _ := cast.ToStringE(pp["Host"])
+	port, _ := cast.ToStringE(pp["Port"])
+	rack, _ := cast.ToIntE(pp["Rack"])
+	slot, _ := cast.ToIntE(pp["Slot"])
+	timeout, _ := cast.ToIntE(pp["Timeout"])
+	idletimeout, _ := cast.ToIntE(pp["IdleTimeout"])
 
 	// create handler: PLC tcp client
 	handler := gos7.NewTCPClientHandler(host+":"+port, rack, slot)

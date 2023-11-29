@@ -2,8 +2,7 @@ deviceList:
   - name: S7-Device01
     profileName: S7-Device
     description: Example of S7 Device
-    labels:
-      - industrial
+    labels: [industrial]
     protocols:
       s7:
         Host: 192.168.123.199

@@ -211,8 +211,8 @@ deviceList:
       s7:
         Host: 192.168.123.199
         Port: 102
-        Rack: 0
-        Slot: 1
+        Rack: 0 # option: default 0
+        Slot: 1 # option: default 1
     autoEvents:
       - interval: 1s
         onChange: false

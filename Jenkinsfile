@@ -16,5 +16,4 @@
 
 edgeXBuildGoApp (
     project: 'device-s7',
-    buildSnap: false
 ) 
