@@ -1,7 +1,7 @@
 # Device Service for Siemens S7 PLC
 
 <!---
-[![Build Status](https://jenkins.edgexfoundry.org/view/EdgeX%20Foundry%20Project/job/edgexfoundry/job/device-s7-go/job/main/badge/icon)](https://jenkins.edgexfoundry.org/view/EdgeX%20Foundry%20Project/job/edgexfoundry/job/device-s7-go/job/main/) [![Code Coverage](https://codecov.io/gh/edgexfoundry/device-s7-go/branch/main/graph/badge.svg?token=IUywg34zfH)](https://codecov.io/gh/edgexfoundry/device-s7-go) [![Go Report Card](https://goreportcard.com/badge/github.com/edgexfoundry/device-s7-go)](https://goreportcard.com/report/github.com/edgexfoundry/device-s7-go) [![GitHub Latest Dev Tag)](https://img.shields.io/github/v/tag/edgexfoundry/device-s7-go?include_prereleases&sort=semver&label=latest-dev)](https://github.com/edgexfoundry/device-s7-go/tags) ![GitHub Latest Stable Tag)](https://img.shields.io/github/v/tag/edgexfoundry/device-s7-go?sort=semver&label=latest-stable) [![GitHub License](https://img.shields.io/github/license/edgexfoundry/device-s7-go)](https://choosealicense.com/licenses/apache-2.0/) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/edgexfoundry/device-s7-go) [![GitHub Pull Requests](https://img.shields.io/github/issues-pr-raw/edgexfoundry/device-s7-go)](https://github.com/edgexfoundry/device-s7-go/pulls) [![GitHub Contributors](https://img.shields.io/github/contributors/edgexfoundry/device-s7-go)](https://github.com/edgexfoundry/device-s7-go/contributors) [![GitHub Committers](https://img.shields.io/badge/team-committers-green)](https://github.com/orgs/edgexfoundry/teams/device-s7-go-committers/members) [![GitHub Commit Activity](https://img.shields.io/github/commit-activity/m/edgexfoundry/device-s7-go)](https://github.com/edgexfoundry/device-s7-go/commits))
+[![Build Status](https://jenkins.edgexfoundry.org/view/EdgeX%20Foundry%20Project/job/edgexfoundry/job/device-s7/job/main/badge/icon)](https://jenkins.edgexfoundry.org/view/EdgeX%20Foundry%20Project/job/edgexfoundry/job/device-s7/job/main/) [![Code Coverage](https://codecov.io/gh/edgexfoundry/device-s7/branch/main/graph/badge.svg?token=IUywg34zfH)](https://codecov.io/gh/edgexfoundry/device-s7) [![Go Report Card](https://goreportcard.com/badge/github.com/edgexfoundry/device-s7)](https://goreportcard.com/report/github.com/edgexfoundry/device-s7) [![GitHub Latest Dev Tag)](https://img.shields.io/github/v/tag/edgexfoundry/device-s7?include_prereleases&sort=semver&label=latest-dev)](https://github.com/edgexfoundry/device-s7/tags) ![GitHub Latest Stable Tag)](https://img.shields.io/github/v/tag/edgexfoundry/device-s7?sort=semver&label=latest-stable) [![GitHub License](https://img.shields.io/github/license/edgexfoundry/device-s7)](https://choosealicense.com/licenses/apache-2.0/) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/edgexfoundry/device-s7) [![GitHub Pull Requests](https://img.shields.io/github/issues-pr-raw/edgexfoundry/device-s7)](https://github.com/edgexfoundry/device-s7/pulls) [![GitHub Contributors](https://img.shields.io/github/contributors/edgexfoundry/device-s7)](https://github.com/edgexfoundry/device-s7/contributors) [![GitHub Committers](https://img.shields.io/badge/team-committers-green)](https://github.com/orgs/edgexfoundry/teams/device-s7-committers/members) [![GitHub Commit Activity](https://img.shields.io/github/commit-activity/m/edgexfoundry/device-s7)](https://github.com/edgexfoundry/device-s7/commits))
 -->
 
 ## Overview
@@ -12,6 +12,10 @@ S7 Micro Service - device service for connecting Siemens S7(S7-200, S7-300, S7-4
 
 - Single Read and Write
 - Multiple Read and Write
+- High performance, more 2000 items per second(depends on S7 model)
+  - Use `S7-Device01` sample device configuration, `interval` should less than `IdelTimeout`
+  - S7-1200 and S7-1500 preferred
+  - Create multiple connections to one S7 device use different device name
 
 ## Prerequisites
 
@@ -108,73 +112,75 @@ device-s7:
 
 ### Device Profile Sample
 
-You should change all `valueType` and `NodeName` to your real `configuration`.
+You should change all `valueType`, `NodeName` and `name` to your real `devices/device.yml`.
+
+- `NodeName` should be use `DB4.DBX0.0` format
 
 ```yaml
-name: S7-Device
+nname: S7-Device
 manufacturer: YIQISOFT
 description: Example of S7 Device
 model: Siemens S7
 labels: [ISO-on-TCP]
 deviceResources:
-  - description: PLC bool
-    name: bool
+  - name: bool
+    description: PLC bool
     isHidden: false
     properties:
       valueType: Bool
       readWrite: RW
     attributes:
       NodeName: DB4.DBX0.0
-  - description: PLC byte
-    name: byte
+  - name: byte
+    description: PLC byte
     isHidden: false
     properties:
       valueType: Uint8
       readWrite: RW
     attributes:
       NodeName: DB4.DBB1
-  - description: PLC word
-    name: word
+  - name: word
+    description: PLC word
     isHidden: false
     properties:
       valueType: Int16
       readWrite: RW
     attributes:
       NodeName: DB4.DBW2
-  - description: PLC dword
-    name: dword
+  - name: dword
+    description: PLC dword
     isHidden: false
     properties:
       valueType: Int32
       readWrite: RW
     attributes:
       NodeName: DB4.DBD4
-  - description: PLC int
-    name: int
+  - name: int
+    description: PLC int
     isHidden: false
     properties:
       valueType: Int16
       readWrite: RW
     attributes:
       NodeName: DB4.DBW8
-  - description: PLC dint
-    name: dint
+  - name: dint
+    description: PLC dint
     isHidden: false
     properties:
       valueType: Int32
       readWrite: RW
     attributes:
       NodeName: DB4.DBW10
-  - description: PLC real
-    name: real
+  - name: real
+    description: PLC real
     isHidden: false
     properties:
       valueType: Float32
       readWrite: RW
     attributes:
       NodeName: DB4.DBD14
-  - description: PLC heartbeat
-    name: heartbeat
+  - name: heartbeat
+    description: PLC heartbeat
     isHidden: false
     properties:
       valueType: Int16
@@ -187,36 +193,80 @@ deviceCommands:
     readWrite: RW
     resourceOperations:
       - deviceResource: bool
+        defaultValue: 'false'
       - deviceResource: byte
+        defaultValue: '0'
       - deviceResource: word
+        defaultValue: '0'
       - deviceResource: dword
+        defaultValue: '0'
       - deviceResource: int
+        defaultValue: '0'
       - deviceResource: dint
+        defaultValue: '0'
       - deviceResource: real
+        defaultValue: '0'
       - deviceResource: heartbeat
+        defaultValue: '0'
 ```
 
 ### Device Sample
 
-Change `Host`, `Port`, `Rack`, `Slot` and `interval` to your real `Configuration`.
+Change `Host`, `Port`, `Rack`, `Slot`, `Timeout`, `IdleTimeout`, `interval` and others(if you want) to your real `Configuration`.
+
+#### S7 protocol in EdgeX device:
+
+| Key         | Default value | Note                             |
+| ----------- | ------------- | -------------------------------- |
+| Host        | N/A           | S7 ip address                    |
+| Port        | N/A           | S7 port, e.g. 102                |
+| Rack        | 0             | Rack number                      |
+| Slot        | 1             | Slot number                      |
+| Timeout     | 30            | connect to S7 timeout, seconds   |
+| IdleTimeout | 30            | connection idle timeout, seconds |
+
+#### Sample devices for test
+
+- **S7-Device01 for test `interval` less than `IdleTimeout`**
+  All `AutoEvent`s in one tcp connection.
+
+- **S7-Device02 for test `interval` grater than `IdleTimeout`**
+  Release tcp connection and disconnect while idle timeout, it will reconnect in the next interval period.
 
 ```yaml
 deviceList:
   - name: S7-Device01
     profileName: S7-Device
     description: Example of S7 Device
-    labels:
-      - industrial
+    labels: [industrial]
     protocols:
       s7:
         Host: 192.168.123.199
         Port: 102
-        Rack: 0 # option: default 0
-        Slot: 1 # option: default 1
+        Rack: 0
+        Slot: 1
+        Timeout: 30
+        IdleTimeout: 30
     autoEvents:
-      - interval: 1s
+      - interval: 10s
         onChange: false
         sourceName: AllResource
+  - name: S7-Device02
+    profileName: S7-Device
+    description: Example of S7 Device
+    labels: [industrial]
+    protocols:
+      s7:
+        Host: 192.168.123.199
+        Port: 102
+        Rack: 0
+        Slot: 1
+        Timeout: 5
+        IdleTimeout: 5
+    autoEvents:
+      - interval: 10s
+        onChange: false
+        sourceName: heartbeat
 ```
 
 ### Service status

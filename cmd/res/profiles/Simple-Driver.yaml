@@ -74,7 +74,7 @@ deviceCommands:
     readWrite: RW
     resourceOperations:
       - deviceResource: bool
-        defaultValue: '0'
+        defaultValue: 'false'
       - deviceResource: byte
         defaultValue: '0'
       - deviceResource: word
@@ -84,5 +84,8 @@ deviceCommands:
       - deviceResource: int
         defaultValue: '0'
       - deviceResource: dint
+        defaultValue: '0'
       - deviceResource: real
+        defaultValue: '0'
       - deviceResource: heartbeat
+        defaultValue: '0'
