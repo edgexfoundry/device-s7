@@ -1,5 +1,5 @@
 Writable:
-  LogLevel: DEBUG
+  LogLevel: INFO
 Service:
   Host: 'localhost'
   Port: 59994 # 59994 for testing

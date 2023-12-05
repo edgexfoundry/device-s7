@@ -170,9 +170,9 @@ outloop:
 				s.lc.Errorf("AGReadMulti Error: %s, reconnecting...", err)
 				s.mu.Lock()
 				s.s7Clients[deviceName] = nil
+				s.mu.Unlock()
 				s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
 				s7Client = s.s7Clients[deviceName]
-				s.mu.Unlock()
 			} else {
 				s.lc.Debugf("AGReadMulti read from 'dataset': ", dataset)
 				break
@@ -302,9 +302,9 @@ outloop:
 				s.lc.Errorf("AGWriteMulti Error: %s, reconnecting...", err)
 				s.mu.Lock()
 				s.s7Clients[deviceName] = nil
+				s.mu.Unlock()
 				s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
 				s7Client = s.s7Clients[deviceName]
-				s.mu.Unlock()
 			} else {
 				s.lc.Debugf("AGWriteMulti write from 'dataset': %s", dataset)
 				break
@@ -352,8 +352,9 @@ func (s *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 	s.s7Clients[deviceName] = nil
 	s7Client := s.NewS7Client(deviceName, protocols)
 	if s7Client == nil {
-		s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
-		return fmt.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		errt := fmt.Errorf("Failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		s.lc.Errorf(errt.Error())
+		return errt
 	}
 	s.mu.Lock()
 	s.s7Clients[deviceName] = s7Client
@@ -366,11 +367,11 @@ func (s *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 func (s *Driver) UpdateDevice(deviceName string, protocols map[string]models.ProtocolProperties, adminState models.AdminState) error {
 	s.lc.Debugf("Device %s is updated", deviceName)
 
-	s.s7Clients[deviceName] = nil
 	s7Client := s.NewS7Client(deviceName, protocols)
 	if s7Client == nil {
-		s.lc.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
-		return fmt.Errorf("failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		errt := fmt.Errorf("Failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		s.lc.Errorf(errt.Error())
+		return errt
 	}
 	s.mu.Lock()
 	s.s7Clients[deviceName] = s7Client
@@ -390,15 +391,15 @@ func (s *Driver) RemoveDevice(deviceName string, protocols map[string]models.Pro
 }
 
 func (s *Driver) ValidateDevice(device models.Device) error {
-	s.lc.Infof("Validating device: %s", device.Name)
+	s.lc.Debugf("Validating device: %s", device.Name)
 
 	protocols := device.Protocols
 	pp := protocols[Protocol]
 	var errt error
 
 	if pp == nil {
-		s.lc.Errorf("Protocol not found or empty.")
-		errt = fmt.Errorf("Protocol not found or empty.")
+		errt = fmt.Errorf("%s not found in protocols for device %s", Protocol, device.Name)
+		s.lc.Error(errt.Error())
 		return errt
 	}
 
@@ -454,7 +455,7 @@ func (s *Driver) NewS7Client(deviceName string, protocol map[string]models.Proto
 		s.lc.Errorf("Cant not create NewTCPClientHandler: %s", handler)
 		return nil
 	}
-	s.lc.Infof("New TCP Client: %s", handler)
+	s.lc.Debugf("New TCP Client: %s", handler)
 
 	// handler connect timeout from 'Timeout'
 	handler.Timeout = time.Duration(timeout) * time.Second
@@ -485,7 +486,7 @@ func (s *Driver) getS7Client(deviceName string, protocols map[string]models.Prot
 	s.mu.Unlock()
 
 	if s7Client == nil {
-		s.lc.Errorf("Can not get S7CLient from: %s", deviceName)
+		s.lc.Warnf("Can not get S7CLient from: %s", deviceName)
 		s.mu.Lock()
 		s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
 		s7Client = s.s7Clients[deviceName]
