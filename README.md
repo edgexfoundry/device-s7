@@ -10,6 +10,10 @@
 >
 > **The source for the latest release can be found at [Releases](https://github.com/edgexfoundry/device-s7/releases).**
 
+## Documentation
+
+For latest documentation please visit https://docs.edgexfoundry.org/latest/microservices/device/services/device-s7/Purpose
+
 ## Overview
 
 S7 Micro Service - device service for connecting Siemens S7(S7-200, S7-300, S7-400, S7-1200, S7-1500) devices by `ISO-on-TCP` to EdgeX.
@@ -56,10 +60,6 @@ The following make commands will build the local binary or local Docker image wi
 make build-nats
 make docker-nats
 ```
-
-## Documentation
-
-For latest documentation please visit https://docs.edgexfoundry.org/latest/microservices/device/services/device-s7/Purpose
 
 ## Packaging
 

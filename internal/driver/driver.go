@@ -349,7 +349,9 @@ func (s *Driver) Stop(force bool) error {
 func (s *Driver) AddDevice(deviceName string, protocols map[string]models.ProtocolProperties, adminState models.AdminState) error {
 	s.lc.Debugf("a new Device is added: %s", deviceName)
 
+	s.mu.Lock()
 	s.s7Clients[deviceName] = nil
+	s.mu.Unlock()
 	s7Client := s.NewS7Client(deviceName, protocols)
 	if s7Client == nil {
 		errt := fmt.Errorf("Failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
@@ -486,7 +488,7 @@ func (s *Driver) getS7Client(deviceName string, protocols map[string]models.Prot
 	s.mu.Unlock()
 
 	if s7Client == nil {
-		s.lc.Warnf("Can not get S7CLient from: %s", deviceName)
+		s.lc.Warnf("S7CLient for device %s not found. Creating it...", deviceName)
 		s.mu.Lock()
 		s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
 		s7Client = s.s7Clients[deviceName]
