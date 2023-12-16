@@ -14,7 +14,7 @@ import (
 )
 
 // checkValueInRange checks value range is valid
-func checkValueInRange(valueType string, reading interface{}) bool {
+func checkValueInRange(valueType string, reading any) bool {
 	isValid := false
 
 	if valueType == common.ValueTypeString || valueType == common.ValueTypeBool || valueType == common.ValueTypeObject {

@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func castToInt(i interface{}, field string) (int, errors.EdgeX) {
+func castToInt(i any, field string) (int, errors.EdgeX) {
 	res, err := cast.ToIntE(i)
 	if err != nil {
 		return 0, errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("%s should be castable to an integer value", field), err)
@@ -22,7 +22,7 @@ func castToInt(i interface{}, field string) (int, errors.EdgeX) {
 	return res, nil
 }
 
-func castToString(i interface{}) (string, errors.EdgeX) {
+func castToString(i any) (string, errors.EdgeX) {
 	res, err := cast.ToStringE(i)
 	if err != nil {
 		return "", errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("should be castable to a string value"), err)

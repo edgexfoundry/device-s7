@@ -171,8 +171,7 @@ outloop:
 				s.mu.Lock()
 				s.s7Clients[deviceName] = nil
 				s.mu.Unlock()
-				s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
-				s7Client = s.s7Clients[deviceName]
+				s7Client = s.getS7Client(deviceName, protocols)
 			} else {
 				s.lc.Debugf("AGReadMulti read from 'dataset': ", dataset)
 				break
@@ -199,7 +198,7 @@ outloop:
 	for i, req := range reqs {
 
 		var result = &sdkModel.CommandValue{}
-		var value interface{}
+		var value any
 
 		value, err := getCommandValueType(dataset[i], req.Type)
 		if err != nil {
@@ -303,8 +302,7 @@ outloop:
 				s.mu.Lock()
 				s.s7Clients[deviceName] = nil
 				s.mu.Unlock()
-				s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
-				s7Client = s.s7Clients[deviceName]
+				s7Client = s.getS7Client(deviceName, protocols)
 			} else {
 				s.lc.Debugf("AGWriteMulti write from 'dataset': %s", dataset)
 				break
@@ -352,7 +350,7 @@ func (s *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 	s.mu.Lock()
 	s.s7Clients[deviceName] = nil
 	s.mu.Unlock()
-	s7Client := s.NewS7Client(deviceName, protocols)
+	s7Client := s.getS7Client(deviceName, protocols)
 	if s7Client == nil {
 		errt := fmt.Errorf("Failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
 		s.lc.Errorf(errt.Error())
@@ -387,7 +385,7 @@ func (s *Driver) UpdateDevice(deviceName string, protocols map[string]models.Pro
 func (s *Driver) RemoveDevice(deviceName string, protocols map[string]models.ProtocolProperties) error {
 	s.lc.Debugf("Device %s is removed", deviceName)
 	s.mu.Lock()
-	s.s7Clients[deviceName] = nil
+	delete(s.s7Clients, deviceName)
 	s.mu.Unlock()
 	return nil
 }
@@ -489,9 +487,9 @@ func (s *Driver) getS7Client(deviceName string, protocols map[string]models.Prot
 
 	if s7Client == nil {
 		s.lc.Warnf("S7CLient for device %s not found. Creating it...", deviceName)
+		s7Client = s.NewS7Client(deviceName, protocols)
 		s.mu.Lock()
-		s.s7Clients[deviceName] = s.NewS7Client(deviceName, protocols)
-		s7Client = s.s7Clients[deviceName]
+		s.s7Clients[deviceName] = s7Client
 		s.mu.Unlock()
 	}
 
@@ -597,7 +595,7 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 }
 
 // Get command value type
-func getCommandValueType(buffer []byte, valueType string) (value interface{}, err error) {
+func getCommandValueType(buffer []byte, valueType string) (value any, err error) {
 	var helper gos7.Helper
 
 	switch valueType {
@@ -657,8 +655,8 @@ func getCommandValueType(buffer []byte, valueType string) (value interface{}, er
 }
 
 // Create command value
-func newCommandValue(valueType string, param *sdkModel.CommandValue) (interface{}, error) {
-	var commandValue interface{}
+func newCommandValue(valueType string, param *sdkModel.CommandValue) (any, error) {
+	var commandValue any
 	var err error
 	switch valueType {
 	case common.ValueTypeBool:
@@ -693,7 +691,7 @@ func newCommandValue(valueType string, param *sdkModel.CommandValue) (interface{
 }
 
 // Get command value
-func getCommandValue(req sdkModel.CommandRequest, reading interface{}) (*sdkModel.CommandValue, error) {
+func getCommandValue(req sdkModel.CommandRequest, reading any) (*sdkModel.CommandValue, error) {
 	var err error
 	var result = &sdkModel.CommandValue{}
 	castError := "fail to parse %v reading, %v"
@@ -704,7 +702,7 @@ func getCommandValue(req sdkModel.CommandRequest, reading interface{}) (*sdkMode
 		return result, err
 	}
 
-	var val interface{}
+	var val any
 	switch req.Type {
 	case common.ValueTypeBool:
 		val, err = cast.ToBoolE(reading)
