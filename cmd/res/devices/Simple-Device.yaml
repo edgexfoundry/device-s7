@@ -1,0 +1,33 @@
+deviceList:
+  - name: S7-Device01
+    profileName: S7-Device
+    description: Example of S7 Device
+    labels: [industrial]
+    protocols:
+      s7:
+        Host: 192.168.123.199
+        Port: 102
+        Rack: 0
+        Slot: 1
+        Timeout: 30
+        IdleTimeout: 30
+    autoEvents:
+      - interval: 10s
+        onChange: false
+        sourceName: AllResource
+  - name: S7-Device02
+    profileName: S7-Device
+    description: Example of S7 Device
+    labels: [industrial]
+    protocols:
+      s7:
+        Host: 192.168.123.199
+        Port: 102
+        Rack: 0
+        Slot: 1
+        Timeout: 5
+        IdleTimeout: 5
+    autoEvents:
+      - interval: 10s
+        onChange: false
+        sourceName: heartbeat

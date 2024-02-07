@@ -1,0 +1,91 @@
+name: S7-Device
+manufacturer: YIQISOFT
+description: Example of S7 Device
+model: Siemens S7
+labels: [ISO-on-TCP]
+deviceResources:
+  - name: bool
+    description: PLC bool
+    isHidden: false
+    properties:
+      valueType: Bool
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBX0.0
+  - name: byte
+    description: PLC byte
+    isHidden: false
+    properties:
+      valueType: Uint8
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBB1
+  - name: word
+    description: PLC word
+    isHidden: false
+    properties:
+      valueType: Int16
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBW2
+  - name: dword
+    description: PLC dword
+    isHidden: false
+    properties:
+      valueType: Int32
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBD4
+  - name: int
+    description: PLC int
+    isHidden: false
+    properties:
+      valueType: Int16
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBW8
+  - name: dint
+    description: PLC dint
+    isHidden: false
+    properties:
+      valueType: Int32
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBW10
+  - name: real
+    description: PLC real
+    isHidden: false
+    properties:
+      valueType: Float32
+      readWrite: RW
+    attributes:
+      NodeName: DB4.DBD14
+  - name: heartbeat
+    description: PLC heartbeat
+    isHidden: false
+    properties:
+      valueType: Int16
+      readWrite: RW
+    attributes:
+      NodeName: DB1.DBW160
+deviceCommands:
+  - name: AllResource
+    isHidden: false
+    readWrite: RW
+    resourceOperations:
+      - deviceResource: bool
+        defaultValue: 'false'
+      - deviceResource: byte
+        defaultValue: '0'
+      - deviceResource: word
+        defaultValue: '0'
+      - deviceResource: dword
+        defaultValue: '0'
+      - deviceResource: int
+        defaultValue: '0'
+      - deviceResource: dint
+        defaultValue: '0'
+      - deviceResource: real
+        defaultValue: '0'
+      - deviceResource: heartbeat
+        defaultValue: '0'
