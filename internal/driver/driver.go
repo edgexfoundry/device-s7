@@ -42,11 +42,10 @@ var once sync.Once
 var driver *Driver
 
 type Driver struct {
-	lc         logger.LoggingClient
-	asyncCh    chan<- *sdkModel.AsyncValues
-	sdkService interfaces.DeviceServiceSDK
-	s7Clients  map[string]*S7Client
-	mu         sync.Mutex
+	lc        logger.LoggingClient
+	asyncCh   chan<- *sdkModel.AsyncValues
+	s7Clients map[string]*S7Client
+	mu        sync.Mutex
 }
 
 func NewProtocolDriver() interfaces.ProtocolDriver {
@@ -137,6 +136,7 @@ outloop:
 			if remains > 0 {
 				tmp_reqs = reqs[times*batch_size : times*batch_size+remains]
 			} else {
+				_ = tmp_reqs
 				break outloop // load complete, exit loop
 			}
 		} else {
@@ -197,7 +197,7 @@ outloop:
 	// read results from the dataset of s7DataItems
 	for i, req := range reqs {
 
-		var result = &sdkModel.CommandValue{}
+		var result *sdkModel.CommandValue
 		var value any
 
 		value, err := getCommandValueType(dataset[i], req.Type)
@@ -207,6 +207,11 @@ outloop:
 		}
 
 		result, err = getCommandValue(req, value)
+		if err != nil {
+			s.lc.Debugf("getCommandValue error: %v", err)
+			continue
+		}
+
 		res[i] = result
 	}
 
@@ -273,7 +278,6 @@ func (s *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 	// send command requests
 	times := int(reqs_len / batch_size)
 	remains := reqs_len % batch_size
-	var tmp_reqs []sdkModel.CommandRequest
 	var tmp_s7DateItems = []gos7.S7DataItem{}
 
 	s7Client := s.getS7Client(deviceName, protocols)
@@ -282,11 +286,11 @@ outloop:
 	for j := 0; j <= times; j++ {
 
 		tmp_s7DateItems = tmp_s7DateItems[:0] // clear array
-		tmp_reqs = tmp_reqs[:0]               // clear array
 		if j >= times {
 			if remains > 0 {
 				tmp_s7DateItems = s7DataItems[times*batch_size : times*batch_size+remains]
 			} else {
+				_ = tmp_s7DateItems
 				break outloop // load complete, exit loop
 			}
 		} else {
@@ -352,7 +356,7 @@ func (s *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 	s.mu.Unlock()
 	s7Client := s.getS7Client(deviceName, protocols)
 	if s7Client == nil {
-		errt := fmt.Errorf("Failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		errt := fmt.Errorf("failed to initialize S7 client for '%s' device, skipping this device", deviceName)
 		s.lc.Errorf(errt.Error())
 		return errt
 	}
@@ -369,7 +373,7 @@ func (s *Driver) UpdateDevice(deviceName string, protocols map[string]models.Pro
 
 	s7Client := s.NewS7Client(deviceName, protocols)
 	if s7Client == nil {
-		errt := fmt.Errorf("Failed to initialize S7 client for '%s' device, skipping this device.", deviceName)
+		errt := fmt.Errorf("failed to initialize S7 client for '%s' device, skipping this device", deviceName)
 		s.lc.Errorf(errt.Error())
 		return errt
 	}
