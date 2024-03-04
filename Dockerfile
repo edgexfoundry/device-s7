@@ -42,7 +42,7 @@ RUN apk add --update --no-cache dumb-init
 RUN apk --no-cache upgrade
 
 WORKDIR /
-COPY --from=builder /device-s7/cmd/Attribution.txt /Attribution.txt
+COPY --from=builder /device-s7/Attribution.txt /Attribution.txt
 COPY --from=builder /device-s7/cmd/device-s7 /device-s7
 COPY --from=builder /device-s7/cmd/res /res
 
