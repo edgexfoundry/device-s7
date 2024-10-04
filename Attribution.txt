@@ -266,3 +266,9 @@ https://cs.opensource.google/go/x/exp/+/master:LICENSE
 
 golang.org/x/time (BSD-3) https://cs.opensource.google/go/x/time
 https://cs.opensource.google/go/x/time/+/master:LICENSE
+
+github.com/go-jose/go-jose/v4 (Apache-2.0) https://github.com/go-jose/go-jose
+https://github.com/go-jose/go-jose/blob/main/LICENSE
+
+google.golang.org/genproto/googleapis/rpc (Apache-2.0) https://github.com/googleapis/go-genproto
+https://github.com/googleapis/go-genproto/blob/main/LICENSE

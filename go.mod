@@ -1,6 +1,6 @@
 module github.com/edgexfoundry/device-s7
 
-go 1.21
+go 1.23
 
 require (
 	github.com/edgexfoundry/device-sdk-go/v3 v3.1.1
