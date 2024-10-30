@@ -50,4 +50,4 @@ COPY --from=builder /device-s7/cmd/res /res
 EXPOSE 59994
 
 ENTRYPOINT ["/device-s7"]
-CMD ["-cp=consul.http://edgex-core-consul:8500", "--registry"]
+CMD ["-cp=keeper.http://edgex-core-keeper:59890", "--registry"]

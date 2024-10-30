@@ -11,7 +11,7 @@ import (
 	device_s7 "github.com/edgexfoundry/device-s7"
 
 	"github.com/edgexfoundry/device-s7/internal/driver"
-	"github.com/edgexfoundry/device-sdk-go/v3/pkg/startup"
+	"github.com/edgexfoundry/device-sdk-go/v4/pkg/startup"
 )
 
 const (
