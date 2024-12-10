@@ -109,9 +109,7 @@ func (s *Driver) HandleReadCommands(deviceName string, protocols map[string]mode
 	var reqs_len = len(reqs)
 	var s7DataItems = []gos7.S7DataItem{}
 
-	res = make([]*sdkModel.CommandValue, reqs_len)
 	var s7_errors = make([]string, reqs_len)
-
 	// two-dimensional array for handle S7DataItems
 	var dataset = make([][]byte, reqs_len)
 	for i := range dataset {
@@ -145,11 +143,25 @@ outloop:
 		}
 
 		// 2. get resources from reqs append to items
+		var count int
 		for i, req := range tmp_reqs {
 
 			nodename := cast.ToString(req.Attributes["NodeName"])
-			dbInfo, _ := s.getDBInfo(nodename)
-
+			dbInfo, err := s.getDBInfo(nodename)
+			if err != nil {
+				count++
+				s.lc.Errorf("convert nodeName to dbInfo failed,err =%v", err)
+				var nilS7DataItem = gos7.S7DataItem{
+					Area:     0,
+					WordLen:  0,
+					DBNumber: 0,
+					Start:    0,
+					Amount:   0,
+					Data:     dataset[j*batch_size+i],
+				}
+				s7DataItems = append(s7DataItems, nilS7DataItem)
+				continue
+			}
 			var s7DataItem = gos7.S7DataItem{
 				Area:     dbInfo.Area,
 				WordLen:  dbInfo.WordLength,
@@ -157,11 +169,14 @@ outloop:
 				Start:    dbInfo.Start,
 				Amount:   dbInfo.Amount,
 				Data:     dataset[j*batch_size+i],
-				Error:    s7_errors[i],
 			}
 			s7DataItems = append(s7DataItems, s7DataItem)
 		}
-		s.lc.Debugf("Read from S7DataItems: ", s7DataItems)
+		s.lc.Debugf("Read from S7DataItems: %+v", s7DataItems)
+		if count == len(tmp_reqs) {
+			s.lc.Errorf("commandRequest %+v is invalid", tmp_reqs)
+			continue
+		}
 
 		// 3. use AGReadMulti api to get values from S7 device, if error, try 3 times
 		retrytimes := 3
@@ -184,22 +199,27 @@ outloop:
 			}
 
 		}
+		//4. use s7_errors to record the abnormal error messages of all read points
+		for i, s7DataItem := range s7DataItems {
+			if s7_error := s7DataItem.Error; s7_error != "" {
+				s.lc.Errorf("s7DataItem:%+v,error: %s", s7DataItem, s7_error)
+				s7_errors[j*batch_size+i] = s7_error
+			}
+		}
 
 	}
 	// end assemble s7DataItems
-
-	for _, s7_error := range s7_errors {
-		if s7_error != "" {
-			s.lc.Errorf("S7 Client AGReadMulti error: %s", s7_error)
-			return
-		}
-	}
-
+	s.lc.Debugf("Read S7DataItems: %+v", s7DataItems)
 	// read results from the dataset of s7DataItems
 	for i, req := range reqs {
 
 		var result *sdkModel.CommandValue
 		var value any
+
+		if s7_error := s7_errors[i]; s7_error != "" {
+			s.lc.Errorf("S7 Client AGRead req %+v failed,error: %s", req, s7_error)
+			continue
+		}
 
 		value, err := getCommandValueType(dataset[i], req.Type)
 		if err != nil {
@@ -209,13 +229,16 @@ outloop:
 
 		result, err = getCommandValue(req, value)
 		if err != nil {
-			s.lc.Debugf("getCommandValue error: %v", err)
+			s.lc.Errorf("getCommandValue error: %v", err)
 			continue
 		}
 
-		res[i] = result
+		res = append(res, result)
 	}
-
+	if len(res) == 0 {
+		s.lc.Errorf("read reqs %+v failed", reqs)
+		return nil, fmt.Errorf("read reqs %+v failed", reqs)
+	}
 	s.lc.Debugf("CommandValues: %s", res)
 
 	return
@@ -239,7 +262,6 @@ func (s *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 	var helper gos7.Helper
 
 	var s7_errors = make([]string, reqs_len)
-
 	// two-dimensional array for handle S7DataItems
 	var dataset = make([][]byte, reqs_len)
 	for i := range dataset {
@@ -247,12 +269,25 @@ func (s *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 	}
 
 	// transfer command values to S7DataItems
+	var count int
 	for i, req := range reqs {
 
 		s.lc.Debugf("S7Driver.HandleWriteCommands: protocols: %v, resource: %v, parameters: %v, attributes: %v", protocols, req.DeviceResourceName, params[i], req.Attributes)
 
-		var nodename = cast.ToString(req.Attributes["NodeName"])
-		var dbInfo, _ = s.getDBInfo(nodename)
+		var nodeName = cast.ToString(req.Attributes["NodeName"])
+		var dbInfo, err = s.getDBInfo(nodeName)
+		if err != nil {
+			count++
+			s.lc.Errorf("convert nodeName %v to dbInfo failed,err =%v", nodeName, err)
+			dbInfo = &DBInfo{
+				Area:       0,
+				DBNumber:   0,
+				Start:      0,
+				Amount:     0,
+				WordLength: 0,
+				DBArray:    []string{nodeName},
+			}
+		}
 
 		reading, err := newCommandValue(req.Type, params[i])
 		if err != nil {
@@ -268,12 +303,14 @@ func (s *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 			Start:    dbInfo.Start,
 			Amount:   dbInfo.Amount,
 			Data:     dataset[i],
-			Error:    s7_errors[i],
 		}
 		s7DataItems = append(s7DataItems, s7DataItem)
 
 	}
-
+	if count == len(reqs) {
+		s.lc.Errorf("commandWrite %+v is invalid", reqs)
+		return fmt.Errorf("commandWrite %+v is invalid", reqs)
+	}
 	s.lc.Debugf("Write to S7DataItems: %s", s7DataItems)
 
 	// send command requests
@@ -318,6 +355,14 @@ outloop:
 				break
 			}
 		}
+		// Record all errors
+		for i, tmp_s7DataItem := range tmp_s7DateItems {
+			if s7_error := tmp_s7DataItem.Error; s7_error != "" {
+				s.lc.Errorf("tmp_s7DataItem:%+v,error: %s", tmp_s7DataItem, s7_error)
+				s7_errors[j*batch_size+i] = s7_error
+			}
+		}
+
 	}
 
 	for _, s7_error := range s7_errors {
@@ -511,7 +556,7 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 
 	if variable == "" {
 		s.lc.Errorf("input [NodeName] variable is empty, variable should be S7 syntax")
-		return
+		return nil, fmt.Errorf("input [NodeName] variable is empty, variable should be S7 syntax")
 	}
 
 	var area int
@@ -545,17 +590,34 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 		dbArray = strings.Split(variable, ".")
 		if len(dbArray) < 2 {
 			s.lc.Errorf("Db Area read variable should not be empty")
-			return
+			return nil, fmt.Errorf("DB variable %+v is invalid", variable)
 		}
-		dbNo, _ = strconv.ParseInt(string(string(dbArray[0])[2:]), 10, 16)
-		dbIndex, _ = strconv.ParseInt(string(string(dbArray[1])[3:]), 10, 16)
+		dbNo, err = strconv.ParseInt(string(string(dbArray[0])[2:]), 10, 16)
+		if err != nil {
+			s.lc.Errorf("convert dbNo of %+v to int failed.err:%v", variable, err)
+			return nil, fmt.Errorf("convert dbNo of %+v to int failed.err:%v", variable, err)
+		}
+		dbIndex, err = strconv.ParseInt(string(string(dbArray[1])[3:]), 10, 16)
+		if err != nil {
+			s.lc.Errorf("convert dbIndex of %+v to int failed.err:%v", variable, err)
+			return nil, fmt.Errorf("convert dbIndex of %+v to int failed.err:%v", variable, err)
+		}
+
 		dbType := string(dbArray[1])[0:3]
 
 		switch dbType {
 		case "DBX": //bit
 			wordLen = s7wlbit
+			if length := len(dbArray); length != 3 {
+				s.lc.Errorf("The point address of %+v is incorrect", variable)
+				return nil, fmt.Errorf("the point address of %+v is incorrect", variable)
+			}
 			// DBIndex = dbIndex + dbBit (DBX12.5 = 12<<3 + 5 = 96+5 = 101 = 0x65)
-			dbBit, _ := strconv.ParseInt(string(string(dbArray[2])), 10, 16)
+			dbBit, err := strconv.ParseInt(string(string(dbArray[2])), 10, 16)
+			if err != nil {
+				s.lc.Errorf("convert dbBit of %+v to int failed.err:%v", variable, err)
+				return nil, fmt.Errorf("convert dbBit of %+v to int failed.err:%v", variable, err)
+			}
 			dbIndex = dbIndex<<3 + dbBit
 		case "DBB": //byte
 			wordLen = s7wlbyte
@@ -567,7 +629,7 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 			// amount = 4
 		default:
 			s.lc.Errorf("error when parsing dbtype")
-
+			return nil, fmt.Errorf("error when parsing dbtype")
 		}
 	default:
 		switch otherArea := variable[0:1]; otherArea {
@@ -583,11 +645,14 @@ func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 			return
 		default:
 			s.lc.Errorf("error when parsing db area")
-			return
+			return nil, fmt.Errorf("error when parsing db area")
 		}
 
 	}
-
+	if err != nil {
+		s.lc.Errorf("convert %+v to int failed.err:%v", variable, err)
+		return nil, fmt.Errorf("convert %+v to int failed.err:%v", variable, err)
+	}
 	return &DBInfo{
 		Area:       area,
 		DBNumber:   int(dbNo),
