@@ -4,4 +4,15 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+    ignore:
+      - dependency-name: "github.com/edgexfoundry/go-mod-core-contracts/*"
+        # Included when device-sdk-go is updated
+      - dependency-name: "github.com/edgexfoundry/go-mod-messaging/*"
+        # Included when device-sdk-go is updated
+      - dependency-name: "github.com/edgexfoundry/go-mod-registry/*"
+        # Included when device-sdk-go is updated
+      - dependency-name: "github.com/edgexfoundry/go-mod-secrets/*"
+        # Included when device-sdk-go is updated
+      - dependency-name: "github.com/edgexfoundry/go-mod-bootstrap/*"
+        # Included when device-sdk-go is updated
