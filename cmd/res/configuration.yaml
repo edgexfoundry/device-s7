@@ -1,11 +1,17 @@
 Writable:
-  LogLevel: INFO
+  LogLevel: "INFO"
+
 Service:
-  Host: 'localhost'
+  Host: "localhost"
   Port: 59994 # 59994 for testing
-  StartupMsg: 'S7 device service started'
+  StartupMsg: "S7 device service started"
+
+MessageBus:
+  Optional:
+    ClientId: "device-s7"
 
 Device:
-  # These have common values (currently), but must be here for service local env overrides to apply when customized
-  ProfilesDir: './res/profiles'
-  DevicesDir: './res/devices'
+  # By default, this service doesn't have any profiles or devices.
+  # The following settings can be overridden with env overrides to apply customized values.
+  ProfilesDir: ""
+  DevicesDir: ""
