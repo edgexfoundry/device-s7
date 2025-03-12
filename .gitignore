@@ -14,6 +14,5 @@
 *.log
 
 .idea/
-vendor/
 VERSION
 cmd/device-s7
