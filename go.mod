@@ -3,7 +3,7 @@ module github.com/edgexfoundry/device-s7
 go 1.23.7
 
 require (
-	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.26
+	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.28
 	github.com/edgexfoundry/go-mod-core-contracts/v4 v4.1.0-dev.9
 	github.com/robinson/gos7 v0.0.0-20231012111941-bdaa10e92e16
 	github.com/spf13/cast v1.9.2
@@ -15,8 +15,8 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.5.0 // indirect
-	github.com/edgexfoundry/go-mod-bootstrap/v4 v4.1.0-dev.22 // indirect
-	github.com/edgexfoundry/go-mod-configuration/v4 v4.1.0-dev.10 // indirect
+	github.com/edgexfoundry/go-mod-bootstrap/v4 v4.1.0-dev.24 // indirect
+	github.com/edgexfoundry/go-mod-configuration/v4 v4.1.0-dev.11 // indirect
 	github.com/edgexfoundry/go-mod-messaging/v4 v4.1.0-dev.11 // indirect
 	github.com/edgexfoundry/go-mod-registry/v4 v4.1.0-dev.3 // indirect
 	github.com/edgexfoundry/go-mod-secrets/v4 v4.1.0-dev.3 // indirect
@@ -45,7 +45,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/go-resty/resty/v2 v2.16.5 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
