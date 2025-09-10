@@ -3,7 +3,7 @@ module github.com/edgexfoundry/device-s7
 go 1.23.7
 
 require (
-	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.35
+	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.38
 	github.com/edgexfoundry/go-mod-core-contracts/v4 v4.1.0-dev.12
 	github.com/robinson/gos7 v0.0.0-20231012111941-bdaa10e92e16
 	github.com/spf13/cast v1.10.0
@@ -15,9 +15,9 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.5.0 // indirect
-	github.com/edgexfoundry/go-mod-bootstrap/v4 v4.1.0-dev.33 // indirect
-	github.com/edgexfoundry/go-mod-configuration/v4 v4.1.0-dev.12 // indirect
-	github.com/edgexfoundry/go-mod-messaging/v4 v4.1.0-dev.13 // indirect
+	github.com/edgexfoundry/go-mod-bootstrap/v4 v4.1.0-dev.35 // indirect
+	github.com/edgexfoundry/go-mod-configuration/v4 v4.1.0-dev.13 // indirect
+	github.com/edgexfoundry/go-mod-messaging/v4 v4.1.0-dev.15 // indirect
 	github.com/edgexfoundry/go-mod-registry/v4 v4.1.0-dev.4 // indirect
 	github.com/edgexfoundry/go-mod-secrets/v4 v4.1.0-dev.4 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
