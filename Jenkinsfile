@@ -16,4 +16,5 @@
 
 edgeXBuildGoApp (
     project: 'device-s7',
+    goVersion: '1.23'
 ) 
