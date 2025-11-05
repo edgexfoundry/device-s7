@@ -551,8 +551,8 @@ func (s *Driver) getS7Client(deviceName string, protocols map[string]models.Prot
 func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
 
 	// varibale sample: DB2.DBX1.0 / DB2.DBD26 / DB2.DBD826
-	variable = strings.ToUpper(variable)              //upper
-	variable = strings.Replace(variable, " ", "", -1) //remove spaces
+	variable = strings.ToUpper(variable)             //upper
+	variable = strings.ReplaceAll(variable, " ", "") //remove spaces
 
 	if variable == "" {
 		s.lc.Errorf("input [NodeName] variable is empty, variable should be S7 syntax")
