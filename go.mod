@@ -3,7 +3,7 @@ module github.com/edgexfoundry/device-s7
 go 1.25.0
 
 require (
-	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.50
+	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.51
 	github.com/edgexfoundry/go-mod-core-contracts/v4 v4.1.0-dev.25
 	github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20
 	github.com/spf13/cast v1.10.0
@@ -93,7 +93,7 @@ require (
 	github.com/openziti/secretstream v0.1.42 // indirect
 	github.com/openziti/transport/v2 v2.0.198 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
-	github.com/panjf2000/ants/v2 v2.11.3 // indirect
+	github.com/panjf2000/ants/v2 v2.11.4 // indirect
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20221025095442-f0a77d263cf9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
