@@ -3,7 +3,7 @@ module github.com/edgexfoundry/device-s7
 go 1.25.0
 
 require (
-	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.60
+	github.com/edgexfoundry/device-sdk-go/v4 v4.1.0-dev.61
 	github.com/edgexfoundry/go-mod-core-contracts/v4 v4.1.0-dev.32
 	github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20
 	github.com/spf13/cast v1.10.0
