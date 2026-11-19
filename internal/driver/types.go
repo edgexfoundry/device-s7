@@ -29,4 +29,6 @@ type S7Info struct {
 type S7Client struct {
 	DeviceName string
 	Client     gos7.Client
+	// Handler holds the PDU length negotiated on connect.
+	Handler *gos7.TCPClientHandler
 }
