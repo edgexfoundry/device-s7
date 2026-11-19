@@ -162,15 +162,7 @@ outloop:
 				s7DataItems = append(s7DataItems, nilS7DataItem)
 				continue
 			}
-			var s7DataItem = gos7.S7DataItem{
-				Area:     dbInfo.Area,
-				WordLen:  dbInfo.WordLength,
-				DBNumber: dbInfo.DBNumber,
-				Start:    dbInfo.Start,
-				Amount:   dbInfo.Amount,
-				Data:     dataset[j*batch_size+i],
-			}
-			s7DataItems = append(s7DataItems, s7DataItem)
+			s7DataItems = append(s7DataItems, readDataItem(dbInfo, dataset[j*batch_size+i]))
 		}
 		s.lc.Debugf("Read from S7DataItems: %+v", s7DataItems)
 		if count == len(tmp_reqs) {
@@ -545,6 +537,24 @@ func (s *Driver) getS7Client(deviceName string, protocols map[string]models.Prot
 
 	return s7Client
 
+}
+
+// readDataItem is the gos7 item that reads dbInfo. getDBInfo keeps a bit address in bits
+// (Start = byte<<3 + bit), which is what AGWriteMulti expects, but AGReadMulti addresses a bit
+// as Start<<3 + Bit: a read needs the byte in Start and the bit in Bit.
+func readDataItem(dbInfo *DBInfo, data []byte) gos7.S7DataItem {
+	item := gos7.S7DataItem{
+		Area:     dbInfo.Area,
+		WordLen:  dbInfo.WordLength,
+		DBNumber: dbInfo.DBNumber,
+		Start:    dbInfo.Start,
+		Amount:   dbInfo.Amount,
+		Data:     data,
+	}
+	if dbInfo.WordLength == s7wlbit {
+		item.Start, item.Bit = dbInfo.Start>>3, dbInfo.Start&7
+	}
+	return item
 }
 
 // transfer DBstring to DBInfo

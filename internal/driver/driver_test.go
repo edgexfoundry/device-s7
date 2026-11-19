@@ -80,3 +80,23 @@ func TestDriver_getDBInfo(t *testing.T) {
 		})
 	}
 }
+
+func TestReadDataItemBitAddress(t *testing.T) {
+	s := &Driver{lc: logger.NewClient("S7", "Error")}
+	dbInfo, err := s.getDBInfo("DB700.DBX4.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := readDataItem(dbInfo, make([]byte, 4))
+	// gos7 reads the bit at Start<<3 + Bit: byte 4, bit 2.
+	if item.Start != 4 || item.Bit != 2 || item.Start<<3+item.Bit != 34 {
+		t.Errorf("bit read item Start %d Bit %d, want 4 and 2", item.Start, item.Bit)
+	}
+	dbInfo, err = s.getDBInfo("DB700.DBW204")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item := readDataItem(dbInfo, make([]byte, 4)); item.Start != 204 || item.Bit != 0 {
+		t.Errorf("word read item Start %d Bit %d, want 204 and 0", item.Start, item.Bit)
+	}
+}
