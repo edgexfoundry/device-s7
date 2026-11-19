@@ -26,6 +26,22 @@ S7 Micro Service - device service for connecting Siemens S7(S7-200, S7-300, S7-4
   - S7-1200 and S7-1500 preferred
   - Create multiple connections to one S7 device use different device name
 
+## Addresses
+
+A resource names its address in the `NodeName` attribute (data blocks only; the DB must not be
+"optimized" so that absolute addresses exist). The value type decides how many bytes are
+transferred; the letter after `DB` only documents the width.
+
+| NodeName | Value types | Notes |
+| --- | --- | --- |
+| `DB1.DBX4.2` | `Bool` | bit 2 of byte 4 |
+| `DB1.DBB0` | `Uint8`, `Int8` | |
+| `DB1.DBW2` | `Uint16`, `Int16` | |
+| `DB1.DBD4` | `Uint32`, `Int32`, `Float32`, `Uint64`, `Int64`, `Float64` | 64-bit types read 8 bytes |
+
+Requests are grouped so that each fits the PDU the PLC negotiated; an item too large for one PDU is
+transferred on its own.
+
 ## Prerequisites
 
 - A Siemens S7 series device with network interface
