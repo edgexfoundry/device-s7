@@ -10,15 +10,12 @@ package driver
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/edgexfoundry/device-sdk-go/v4/pkg/interfaces"
 	sdkModel "github.com/edgexfoundry/device-sdk-go/v4/pkg/models"
 	"github.com/edgexfoundry/go-mod-core-contracts/v4/clients/logger"
-	"github.com/edgexfoundry/go-mod-core-contracts/v4/common"
 	"github.com/edgexfoundry/go-mod-core-contracts/v4/models"
 
 	"github.com/robinson/gos7"
@@ -27,16 +24,8 @@ import (
 
 const (
 	// Word Length
-	s7wlbit     = 0x01 // Bit (inside a word)
-	s7wlbyte    = 0x02 // Byte (8 bit)
-	s7wlChar    = 0x03 // Char (8 bit)
-	s7wlword    = 0x04 // Word (16 bit)
-	s7wlint     = 0x05 // Int (16 bit)
-	s7wldword   = 0x06 // Double Word (32 bit)
-	s7wldint    = 0x07 // DInt (32 bit)
-	s7wlreal    = 0x08 // Real (32 bit float)
-	s7wlcounter = 0x1C // Counter (16 bit)
-	s7wltimer   = 0x1D // Timer (16 bit)
+	s7wlbit  = 0x01 // Bit (inside a word)
+	s7wlbyte = 0x02 // Byte (8 bit)
 )
 
 var once sync.Once
@@ -54,28 +43,6 @@ func NewProtocolDriver() interfaces.ProtocolDriver {
 		driver = new(Driver)
 	})
 	return driver
-}
-
-type CommandInfo struct {
-	Host            string
-	Port            int
-	Rack            int
-	Slot            int
-	AddressType     string
-	DbAddress       int
-	StartingAddress int
-	Length          int
-	Pos             int
-	ValueType       string
-}
-
-type DBInfo struct {
-	Area       int
-	DBNumber   int
-	Start      int
-	Amount     int
-	WordLength int
-	DBArray    []string
 }
 
 // Initialize performs protocol-specific initialization for the device
@@ -99,149 +66,100 @@ func (s *Driver) Initialize(sdk interfaces.DeviceServiceSDK) error {
 	return nil
 }
 
+// withClient runs op on the device's connection; a failed op reconnects and is tried up to 3 times.
+func (s *Driver) withClient(deviceName string, protocols map[string]models.ProtocolProperties, op func(c *S7Client) error) error {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		c := s.getS7Client(deviceName, protocols)
+		if err = op(c); err == nil {
+			return nil
+		}
+		s.lc.Errorf("S7 request to %s failed: %s, reconnecting...", deviceName, err)
+		s.mu.Lock()
+		s.s7Clients[deviceName] = nil
+		s.mu.Unlock()
+	}
+	return err
+}
+
+// planRequests plans every request; an invalid one gets its error and is left out of the transfer.
+func (s *Driver) planRequests(reqs []sdkModel.CommandRequest) ([]item, []int, []error) {
+	var items []item
+	var index []int // position in reqs of each planned item
+	errs := make([]error, len(reqs))
+	for i, req := range reqs {
+		it, err := plan(cast.ToString(req.Attributes["NodeName"]), req.Type)
+		if err != nil {
+			s.lc.Errorf("resource %s: %s", req.DeviceResourceName, err)
+			errs[i] = err
+			continue
+		}
+		items = append(items, it)
+		index = append(index, i)
+	}
+	return items, index, errs
+}
+
 // HandleReadCommands triggers a protocol Read operation for the specified device.
-func (s *Driver) HandleReadCommands(deviceName string, protocols map[string]models.ProtocolProperties, reqs []sdkModel.CommandRequest) (res []*sdkModel.CommandValue, err error) {
+func (s *Driver) HandleReadCommands(deviceName string, protocols map[string]models.ProtocolProperties, reqs []sdkModel.CommandRequest) ([]*sdkModel.CommandValue, error) {
 	s.lc.Debugf("Driver.HandleReadCommands: protocols: %v, resource: %v, attributes: %v", protocols, reqs[0].DeviceResourceName, reqs[0].Attributes)
 
-	// assume the max batch size is 16, must be less than 20
-	var batch_size = 16
-
-	var reqs_len = len(reqs)
-	var s7DataItems = []gos7.S7DataItem{}
-
-	var s7_errors = make([]string, reqs_len)
-	// two-dimensional array for handle S7DataItems
-	var dataset = make([][]byte, reqs_len)
-	for i := range dataset {
-		dataset[i] = make([]byte, 4) // 4 bytes
+	items, index, errs := s.planRequests(reqs)
+	data := make([][]byte, len(items))
+	for i, it := range items {
+		data[i] = make([]byte, it.size)
 	}
 
-	// Get S7 device connection information, each Device has its own connection.
-	s7Client := s.getS7Client(deviceName, protocols)
-
-	// assemble s7DataItems, get items, fetch data
-
-	var times = int(reqs_len / batch_size)
-	var remains = reqs_len % batch_size
-	var tmp_reqs []sdkModel.CommandRequest
-
-outloop:
-	for j := 0; j <= times; j++ {
-
-		// 1. init array
-		s7DataItems = s7DataItems[:0] // clear array
-		tmp_reqs = tmp_reqs[:0]       // clear array
-		if j >= times {
-			if remains > 0 {
-				tmp_reqs = reqs[times*batch_size : times*batch_size+remains]
-			} else {
-				_ = tmp_reqs
-				break outloop // load complete, exit loop
-			}
-		} else {
-			tmp_reqs = reqs[j*batch_size : j*batch_size+batch_size]
+	batches := splitBatches(items, pduOf(s.getS7Client(deviceName, protocols)), false)
+	for _, batch := range batches.multi {
+		dataItems := make([]gos7.S7DataItem, len(batch))
+		for k, i := range batch {
+			dataItems[k] = dataItem(items[i], data[i], false)
 		}
-
-		// 2. get resources from reqs append to items
-		var count int
-		for i, req := range tmp_reqs {
-
-			nodename := cast.ToString(req.Attributes["NodeName"])
-			dbInfo, err := s.getDBInfo(nodename)
-			if err != nil {
-				count++
-				s.lc.Errorf("convert nodeName to dbInfo failed,err =%v", err)
-				var nilS7DataItem = gos7.S7DataItem{
-					Area:     0,
-					WordLen:  0,
-					DBNumber: 0,
-					Start:    0,
-					Amount:   0,
-					Data:     dataset[j*batch_size+i],
-				}
-				s7DataItems = append(s7DataItems, nilS7DataItem)
-				continue
-			}
-			var s7DataItem = gos7.S7DataItem{
-				Area:     dbInfo.Area,
-				WordLen:  dbInfo.WordLength,
-				DBNumber: dbInfo.DBNumber,
-				Start:    dbInfo.Start,
-				Amount:   dbInfo.Amount,
-				Data:     dataset[j*batch_size+i],
-			}
-			s7DataItems = append(s7DataItems, s7DataItem)
-		}
-		s.lc.Debugf("Read from S7DataItems: %+v", s7DataItems)
-		if count == len(tmp_reqs) {
-			s.lc.Errorf("commandRequest %+v is invalid", tmp_reqs)
-			continue
-		}
-
-		// 3. use AGReadMulti api to get values from S7 device, if error, try 3 times
-		retrytimes := 3
-		for {
-			err = s7Client.Client.AGReadMulti(s7DataItems, len(s7DataItems))
-			if err != nil {
-				s.lc.Errorf("AGReadMulti Error: %s, reconnecting...", err)
-				s.mu.Lock()
-				s.s7Clients[deviceName] = nil
-				s.mu.Unlock()
-				s7Client = s.getS7Client(deviceName, protocols)
-			} else {
-				s.lc.Debugf("AGReadMulti read from 'dataset': ", dataset)
-				break
-			}
-
-			retrytimes--
-			if retrytimes == 0 {
-				break
-			}
-
-		}
-		//4. use s7_errors to record the abnormal error messages of all read points
-		for i, s7DataItem := range s7DataItems {
-			if s7_error := s7DataItem.Error; s7_error != "" {
-				s.lc.Errorf("s7DataItem:%+v,error: %s", s7DataItem, s7_error)
-				s7_errors[j*batch_size+i] = s7_error
+		err := s.withClient(deviceName, protocols, func(c *S7Client) error {
+			return c.Client.AGReadMulti(dataItems, len(dataItems))
+		})
+		for k, i := range batch {
+			switch {
+			case err != nil:
+				errs[index[i]] = err
+			case dataItems[k].Error != "":
+				errs[index[i]] = fmt.Errorf("%s", dataItems[k].Error)
 			}
 		}
-
 	}
-	// end assemble s7DataItems
-	s.lc.Debugf("Read S7DataItems: %+v", s7DataItems)
-	// read results from the dataset of s7DataItems
-	for i, req := range reqs {
+	for _, i := range batches.single {
+		it := items[i]
+		errs[index[i]] = s.withClient(deviceName, protocols, func(c *S7Client) error {
+			return c.Client.AGReadDB(it.addr.DB, it.addr.Byte, it.size, data[i])
+		})
+	}
 
-		var result *sdkModel.CommandValue
-		var value any
-
-		if s7_error := s7_errors[i]; s7_error != "" {
-			s.lc.Errorf("S7 Client AGRead req %+v failed,error: %s", req, s7_error)
+	var res []*sdkModel.CommandValue
+	for i, it := range items {
+		req := reqs[index[i]]
+		if err := errs[index[i]]; err != nil {
+			s.lc.Errorf("reading %s failed: %s", req.DeviceResourceName, err)
 			continue
 		}
-
-		value, err := getCommandValueType(dataset[i], req.Type)
+		value, err := decode(it, data[i])
 		if err != nil {
-			s.lc.Errorf("getCommandValueType error: %s", err)
+			s.lc.Errorf("decoding %s failed: %s", req.DeviceResourceName, err)
 			continue
 		}
-
-		result, err = getCommandValue(req, value)
+		cv, err := sdkModel.NewCommandValue(req.DeviceResourceName, req.Type, value)
 		if err != nil {
-			s.lc.Errorf("getCommandValue error: %v", err)
+			s.lc.Errorf("reading %s: %s", req.DeviceResourceName, err)
 			continue
 		}
-
-		res = append(res, result)
+		cv.Origin = time.Now().UnixNano()
+		res = append(res, cv)
 	}
 	if len(res) == 0 {
-		s.lc.Errorf("read reqs %+v failed", reqs)
-		return nil, fmt.Errorf("read reqs %+v failed", reqs)
+		return nil, fmt.Errorf("read of %d resources from %s failed", len(reqs), deviceName)
 	}
 	s.lc.Debugf("CommandValues: %s", res)
-
-	return
+	return res, nil
 }
 
 // HandleWriteCommands passes a slice of CommandRequest struct each representing
@@ -252,126 +170,46 @@ func (s *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 	params []*sdkModel.CommandValue) error {
 	s.lc.Debugf("Driver.HandleWriteCommands: protocols: %v, resource: %v, parameters: %v", protocols, reqs[0].DeviceResourceName, params)
 
-	var err error
-
-	// assume the max batch size is 16, must be less than 20
-	var batch_size = 16
-
-	var reqs_len = len(reqs)
-	var s7DataItems = []gos7.S7DataItem{}
-	var helper gos7.Helper
-
-	var s7_errors = make([]string, reqs_len)
-	// two-dimensional array for handle S7DataItems
-	var dataset = make([][]byte, reqs_len)
-	for i := range dataset {
-		dataset[i] = make([]byte, 4) // 4 bytes
-	}
-
-	// transfer command values to S7DataItems
-	var count int
-	for i, req := range reqs {
-
-		s.lc.Debugf("S7Driver.HandleWriteCommands: protocols: %v, resource: %v, parameters: %v, attributes: %v", protocols, req.DeviceResourceName, params[i], req.Attributes)
-
-		var nodeName = cast.ToString(req.Attributes["NodeName"])
-		var dbInfo, err = s.getDBInfo(nodeName)
+	planned, index, errs := s.planRequests(reqs)
+	for _, err := range errs {
 		if err != nil {
-			count++
-			s.lc.Errorf("convert nodeName %v to dbInfo failed,err =%v", nodeName, err)
-			dbInfo = &DBInfo{
-				Area:       0,
-				DBNumber:   0,
-				Start:      0,
-				Amount:     0,
-				WordLength: 0,
-				DBArray:    []string{nodeName},
-			}
-		}
-
-		reading, err := newCommandValue(req.Type, params[i])
-		if err != nil {
-			s.lc.Errorf("newCommandValue error: %s", err)
-		}
-		helper.SetValueAt(dataset[i], 0, reading)
-
-		// create gos7 DataItem
-		var s7DataItem = gos7.S7DataItem{
-			Area:     dbInfo.Area,
-			WordLen:  dbInfo.WordLength,
-			DBNumber: dbInfo.DBNumber,
-			Start:    dbInfo.Start,
-			Amount:   dbInfo.Amount,
-			Data:     dataset[i],
-		}
-		s7DataItems = append(s7DataItems, s7DataItem)
-
-	}
-	if count == len(reqs) {
-		s.lc.Errorf("commandWrite %+v is invalid", reqs)
-		return fmt.Errorf("commandWrite %+v is invalid", reqs)
-	}
-	s.lc.Debugf("Write to S7DataItems: %s", s7DataItems)
-
-	// send command requests
-	times := int(reqs_len / batch_size)
-	remains := reqs_len % batch_size
-	var tmp_s7DateItems = []gos7.S7DataItem{}
-
-	s7Client := s.getS7Client(deviceName, protocols)
-
-outloop:
-	for j := 0; j <= times; j++ {
-
-		tmp_s7DateItems = tmp_s7DateItems[:0] // clear array
-		if j >= times {
-			if remains > 0 {
-				tmp_s7DateItems = s7DataItems[times*batch_size : times*batch_size+remains]
-			} else {
-				_ = tmp_s7DateItems
-				break outloop // load complete, exit loop
-			}
-		} else {
-			tmp_s7DateItems = s7DataItems[j*batch_size : j*batch_size+batch_size]
-		}
-
-		// write data to S7 device, if error, try 3 times
-		retrytimes := 3
-		for {
-			err = s7Client.Client.AGWriteMulti(tmp_s7DateItems, len(tmp_s7DateItems))
-			if err != nil {
-				s.lc.Errorf("AGWriteMulti Error: %s, reconnecting...", err)
-				s.mu.Lock()
-				s.s7Clients[deviceName] = nil
-				s.mu.Unlock()
-				s7Client = s.getS7Client(deviceName, protocols)
-			} else {
-				s.lc.Debugf("AGWriteMulti write from 'dataset': %s", dataset)
-				break
-			}
-
-			retrytimes--
-			if retrytimes == 0 {
-				break
-			}
-		}
-		// Record all errors
-		for i, tmp_s7DataItem := range tmp_s7DateItems {
-			if s7_error := tmp_s7DataItem.Error; s7_error != "" {
-				s.lc.Errorf("tmp_s7DataItem:%+v,error: %s", tmp_s7DataItem, s7_error)
-				s7_errors[j*batch_size+i] = s7_error
-			}
-		}
-
-	}
-
-	for _, s7_error := range s7_errors {
-		if s7_error != "" {
-			s.lc.Errorf("S7 Client AGWriteMulti error: %s", s7_error)
 			return err
 		}
 	}
+	data := make([][]byte, len(planned))
+	for i, it := range planned {
+		b, err := encode(it, params[index[i]])
+		if err != nil {
+			return fmt.Errorf("resource %s: %w", reqs[index[i]].DeviceResourceName, err)
+		}
+		data[i] = b
+	}
 
+	batches := splitBatches(planned, pduOf(s.getS7Client(deviceName, protocols)), true)
+	for _, batch := range batches.multi {
+		dataItems := make([]gos7.S7DataItem, len(batch))
+		for k, i := range batch {
+			dataItems[k] = dataItem(planned[i], data[i], true)
+		}
+		if err := s.withClient(deviceName, protocols, func(c *S7Client) error {
+			return c.Client.AGWriteMulti(dataItems, len(dataItems))
+		}); err != nil {
+			return err
+		}
+		for k, i := range batch {
+			if e := dataItems[k].Error; e != "" {
+				return fmt.Errorf("writing %s failed: %s", reqs[index[i]].DeviceResourceName, e)
+			}
+		}
+	}
+	for _, i := range batches.single {
+		it := planned[i]
+		if err := s.withClient(deviceName, protocols, func(c *S7Client) error {
+			return c.Client.AGWriteDB(it.addr.DB, it.addr.Byte, it.size, data[i])
+		}); err != nil {
+			return fmt.Errorf("writing %s failed: %w", reqs[index[i]].DeviceResourceName, err)
+		}
+	}
 	return nil
 }
 
@@ -524,6 +362,7 @@ func (s *Driver) NewS7Client(deviceName string, protocol map[string]models.Proto
 	client := &S7Client{
 		DeviceName: deviceName,
 		Client:     s7client,
+		Handler:    handler,
 	}
 	return client
 
@@ -545,309 +384,6 @@ func (s *Driver) getS7Client(deviceName string, protocols map[string]models.Prot
 
 	return s7Client
 
-}
-
-// transfer DBstring to DBInfo
-func (s *Driver) getDBInfo(variable string) (dbInfo *DBInfo, err error) {
-
-	// varibale sample: DB2.DBX1.0 / DB2.DBD26 / DB2.DBD826
-	variable = strings.ToUpper(variable)             //upper
-	variable = strings.ReplaceAll(variable, " ", "") //remove spaces
-
-	if variable == "" {
-		s.lc.Errorf("input [NodeName] variable is empty, variable should be S7 syntax")
-		return nil, fmt.Errorf("input [NodeName] variable is empty, variable should be S7 syntax")
-	}
-
-	var area int
-	var amount int
-	var wordLen int
-	var dbNo int64
-	var dbIndex int64
-	var dbArray []string
-
-	//var area, dbNumber, start, amount, wordLen int
-	switch valueArea := variable[0:2]; valueArea {
-	case "EB": //input byte
-	case "EW": //input word
-	case "ED": //Input double-word
-	case "AB": //Output byte
-	case "AW": //Output word
-	case "AD": //Output double-word
-	case "MB": //Memory byte
-	case "MW": //Memory word
-	case "MD": //Memory double-word
-	case "DB": //Data Block
-		// Area ID
-		// s7areape = 0x81 //process inputs
-		// s7areapa = 0x82 //process outputs
-		// s7areamk = 0x83 //Merkers
-		// s7areadb = 0x84 //DB
-		// s7areact = 0x1C //counters
-		// s7areatm = 0x1D //timers
-		area = 0x84
-		amount = 1
-		dbArray = strings.Split(variable, ".")
-		if len(dbArray) < 2 {
-			s.lc.Errorf("Db Area read variable should not be empty")
-			return nil, fmt.Errorf("DB variable %+v is invalid", variable)
-		}
-		dbNo, err = strconv.ParseInt(string(string(dbArray[0])[2:]), 10, 16)
-		if err != nil {
-			s.lc.Errorf("convert dbNo of %+v to int failed.err:%v", variable, err)
-			return nil, fmt.Errorf("convert dbNo of %+v to int failed.err:%v", variable, err)
-		}
-		dbIndex, err = strconv.ParseInt(string(string(dbArray[1])[3:]), 10, 16)
-		if err != nil {
-			s.lc.Errorf("convert dbIndex of %+v to int failed.err:%v", variable, err)
-			return nil, fmt.Errorf("convert dbIndex of %+v to int failed.err:%v", variable, err)
-		}
-
-		dbType := string(dbArray[1])[0:3]
-
-		switch dbType {
-		case "DBX": //bit
-			wordLen = s7wlbit
-			if length := len(dbArray); length != 3 {
-				s.lc.Errorf("The point address of %+v is incorrect", variable)
-				return nil, fmt.Errorf("the point address of %+v is incorrect", variable)
-			}
-			// DBIndex = dbIndex + dbBit (DBX12.5 = 12<<3 + 5 = 96+5 = 101 = 0x65)
-			dbBit, err := strconv.ParseInt(string(string(dbArray[2])), 10, 16)
-			if err != nil {
-				s.lc.Errorf("convert dbBit of %+v to int failed.err:%v", variable, err)
-				return nil, fmt.Errorf("convert dbBit of %+v to int failed.err:%v", variable, err)
-			}
-			dbIndex = dbIndex<<3 + dbBit
-		case "DBB": //byte
-			wordLen = s7wlbyte
-		case "DBW": //word
-			wordLen = s7wlword
-			// amount = 2
-		case "DBD": //dword
-			wordLen = s7wlreal
-			// amount = 4
-		default:
-			s.lc.Errorf("error when parsing dbtype")
-			return nil, fmt.Errorf("error when parsing dbtype")
-		}
-	default:
-		switch otherArea := variable[0:1]; otherArea {
-		case "E":
-		case "I": //input
-		case "A":
-		case "0": //output
-		case "M": //memory
-		case "T": //timer
-			return
-		case "Z":
-		case "C": //counter
-			return
-		default:
-			s.lc.Errorf("error when parsing db area")
-			return nil, fmt.Errorf("error when parsing db area")
-		}
-
-	}
-	if err != nil {
-		s.lc.Errorf("convert %+v to int failed.err:%v", variable, err)
-		return nil, fmt.Errorf("convert %+v to int failed.err:%v", variable, err)
-	}
-	return &DBInfo{
-		Area:       area,
-		DBNumber:   int(dbNo),
-		Start:      int(dbIndex),
-		Amount:     amount,
-		WordLength: wordLen,
-		DBArray:    dbArray,
-	}, nil
-
-}
-
-// Get command value type
-func getCommandValueType(buffer []byte, valueType string) (value any, err error) {
-	var helper gos7.Helper
-
-	switch valueType {
-	case common.ValueTypeBool:
-		var commandValue bool
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeString:
-		var commandValue string
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeUint8:
-		var commandValue uint8
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeUint16:
-		var commandValue uint16
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeUint32:
-		var commandValue uint32
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeUint64:
-		var commandValue uint64
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeInt8:
-		var commandValue int8
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeInt16:
-		var commandValue int16
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeInt32:
-		var commandValue int32
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeInt64:
-		var commandValue int64
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeFloat32:
-		var commandValue float32
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	case common.ValueTypeFloat64:
-		var commandValue float64
-		helper.GetValueAt(buffer, 0, &commandValue)
-		value = commandValue
-	default:
-		err = fmt.Errorf("fail to convert param, none supported value type: %v", valueType)
-	}
-
-	return value, err
-}
-
-// Create command value
-func newCommandValue(valueType string, param *sdkModel.CommandValue) (any, error) {
-	var commandValue any
-	var err error
-	switch valueType {
-	case common.ValueTypeBool:
-		commandValue, err = param.BoolValue()
-	case common.ValueTypeString:
-		commandValue, err = param.StringValue()
-	case common.ValueTypeUint8:
-		commandValue, err = param.Uint8Value()
-	case common.ValueTypeUint16:
-		commandValue, err = param.Uint16Value()
-	case common.ValueTypeUint32:
-		commandValue, err = param.Uint32Value()
-	case common.ValueTypeUint64:
-		commandValue, err = param.Uint64Value()
-	case common.ValueTypeInt8:
-		commandValue, err = param.Int8Value()
-	case common.ValueTypeInt16:
-		commandValue, err = param.Int16Value()
-	case common.ValueTypeInt32:
-		commandValue, err = param.Int32Value()
-	case common.ValueTypeInt64:
-		commandValue, err = param.Int64Value()
-	case common.ValueTypeFloat32:
-		commandValue, err = param.Float32Value()
-	case common.ValueTypeFloat64:
-		commandValue, err = param.Float64Value()
-	default:
-		err = fmt.Errorf("fail to convert param, none supported value type: %v", valueType)
-	}
-
-	return commandValue, err
-}
-
-// Get command value
-func getCommandValue(req sdkModel.CommandRequest, reading any) (*sdkModel.CommandValue, error) {
-	var err error
-	var result = &sdkModel.CommandValue{}
-	castError := "fail to parse %v reading, %v"
-
-	if !checkValueInRange(req.Type, reading) {
-		err = fmt.Errorf("parse reading fail. Reading %v is out of the value type(%v)'s range", reading, req.Type)
-		driver.lc.Error(err.Error())
-		return result, err
-	}
-
-	var val any
-	switch req.Type {
-	case common.ValueTypeBool:
-		val, err = cast.ToBoolE(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeString:
-		val, err = cast.ToStringE(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeUint8:
-		val, err = cast.ToUint8E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeUint16:
-		val, err = cast.ToUint16E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeUint32:
-		val, err = cast.ToUint32E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeUint64:
-		val, err = cast.ToUint64E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeInt8:
-		val, err = cast.ToInt8E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeInt16:
-		val, err = cast.ToInt16E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeInt32:
-		val, err = cast.ToInt32E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeInt64:
-		val, err = cast.ToInt64E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeFloat32:
-		val, err = cast.ToFloat32E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeFloat64:
-		val, err = cast.ToFloat64E(reading)
-		if err != nil {
-			return nil, fmt.Errorf(castError, req.DeviceResourceName, err)
-		}
-	case common.ValueTypeObject:
-		val = reading
-	default:
-		return nil, fmt.Errorf("return result fail, none supported value type: %v", req.Type)
-
-	}
-
-	result, err = sdkModel.NewCommandValue(req.DeviceResourceName, req.Type, val)
-	if err != nil {
-		return nil, err
-	}
-	result.Origin = time.Now().UnixNano()
-
-	return result, nil
 }
 
 func (d *Driver) Start() error {
