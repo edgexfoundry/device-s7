@@ -35,12 +35,21 @@ transferred; the letter after `DB` only documents the width.
 | NodeName | Value types | Notes |
 | --- | --- | --- |
 | `DB1.DBX4.2` | `Bool` | bit 2 of byte 4 |
+| `DB1.DBX4.2.10` | `BoolArray` | 10 bits from byte 4 bit 2 (read only) |
 | `DB1.DBB0` | `Uint8`, `Int8` | |
 | `DB1.DBW2` | `Uint16`, `Int16` | |
 | `DB1.DBD4` | `Uint32`, `Int32`, `Float32`, `Uint64`, `Int64`, `Float64` | 64-bit types read 8 bytes |
+| `DB1.DBW10.5` | `<type>Array` of the numeric types | 5 elements; any of DBB/DBW/DBD |
+| `DB1.DBB44.20` | `String`, `Binary`, `Uint8Array` | 20 bytes; `String` reads an Array of Char |
+| `DB1.DBC44.20` | `String` | `Array[0..19] of Char` |
+| `DB1.DBC44.20.8` | `StringArray` | 8 consecutive `Array[0..19] of Char` |
+| `DB1.DBS44.20` | `String` | S7 `STRING[20]` (2-byte header, 22 bytes) |
+| `DB1.DBS44.20.8` | `StringArray` | 8 consecutive `STRING[20]` |
 
-Requests are grouped so that each fits the PDU the PLC negotiated; an item too large for one PDU is
-transferred on its own.
+Characters are Latin-1. An Array of Char ends at the first NUL and loses trailing spaces when read,
+and is padded with spaces when written; a string longer than the field is refused. Requests are
+grouped so that each fits the PDU the PLC negotiated; an item too large for one PDU is transferred
+on its own.
 
 ## Prerequisites
 
